@@ -1,0 +1,15 @@
+
+__pycache__/
+*.egg-info/
+venv/
+AGENTS.md
+.venv/
+.coverage
+htmlcov/
+build/
+dist/
+node_modules/
+web/dist/
+desktop/out/
+desktop/dist/
+src/piglet/server/static/
