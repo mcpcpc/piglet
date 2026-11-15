@@ -1,0 +1,6 @@
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"Considering","thought":true,"thoughtSignature":"ts1"}]}}],"responseId":"g1"}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"text":"Answer: "}]}}]}
+
+data: {"candidates":[{"content":{"role":"model","parts":[{"functionCall":{"name":"grep","args":{"pattern":"TODO"}},"thoughtSignature":"ts2"}]},"finishReason":"STOP"}],"usageMetadata":{"promptTokenCount":30,"candidatesTokenCount":7,"thoughtsTokenCount":3,"cachedContentTokenCount":10}}
+
