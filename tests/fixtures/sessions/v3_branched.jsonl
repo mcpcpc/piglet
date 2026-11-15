@@ -1,0 +1,9 @@
+{"type":"session","version":3,"id":"0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b","timestamp":"2026-01-01T10:00:00.000Z","cwd":"/project"}
+{"type":"model_change","id":"m0000001","parentId":null,"timestamp":"2026-01-01T10:00:00.100Z","provider":"anthropic","modelId":"claude-opus-5-5"}
+{"type":"thinking_level_change","id":"t0000001","parentId":"m0000001","timestamp":"2026-01-01T10:00:00.200Z","thinkingLevel":"high"}
+{"type":"message","id":"u0000001","parentId":"t0000001","timestamp":"2026-01-01T10:00:01.000Z","message":{"role":"user","content":"Hello","timestamp":1767261601000}}
+{"type":"message","id":"a0000001","parentId":"u0000001","timestamp":"2026-01-01T10:00:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"Hi!"}],"api":"anthropic-messages","provider":"anthropic","model":"claude-opus-5-5","usage":{"input":1,"output":1,"cacheRead":0,"cacheWrite":0,"totalTokens":2,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}},"stopReason":"stop","timestamp":1767261602000}}
+{"type":"message","id":"u0000002","parentId":"a0000001","timestamp":"2026-01-01T10:00:03.000Z","message":{"role":"user","content":"Option A","timestamp":1767261603000}}
+{"type":"message","id":"u0000003","parentId":"a0000001","timestamp":"2026-01-01T10:00:04.000Z","message":{"role":"user","content":"Option B","timestamp":1767261604000}}
+{"type":"label","id":"l0000001","parentId":"u0000003","timestamp":"2026-01-01T10:00:05.000Z","targetId":"u0000001","label":"start"}
+{"type":"session_info","id":"s0000001","parentId":"l0000001","timestamp":"2026-01-01T10:00:06.000Z","name":"Greeting"}

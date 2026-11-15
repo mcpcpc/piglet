@@ -1,0 +1,6 @@
+{"type":"session","id":"old-session","timestamp":"2025-01-01T10:00:00.000Z","cwd":"/old"}
+{"type":"message","timestamp":"2025-01-01T10:00:01.000Z","message":{"role":"user","content":"one","timestamp":1}}
+{"type":"message","timestamp":"2025-01-01T10:00:02.000Z","message":{"role":"hookMessage","customType":"x","content":"hook","display":true,"timestamp":2}}
+{"type":"compaction","timestamp":"2025-01-01T10:00:03.000Z","summary":"S","firstKeptEntryIndex":2,"tokensBefore":100}
+not json
+{"type":"message","timestamp":"2025-01-01T10:00:04.000Z","message":{"role":"user","content":"two","timestamp":4}}
