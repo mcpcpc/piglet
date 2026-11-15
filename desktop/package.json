@@ -1,0 +1,29 @@
+{
+  "name": "piglet-desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "piglet desktop shell",
+  "main": "out/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json && electron .",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "dist": "tsc -p tsconfig.json && electron-builder --publish never"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.6",
+    "electron": "45.3.2",
+    "electron-builder": "26.18.0",
+    "typescript": "7.0.2"
+  },
+  "build": {
+    "appId": "dev.piglet.app",
+    "productName": "piglet",
+    "directories": { "output": "dist" },
+    "files": ["out/**", "package.json"],
+    "extraResources": [{ "from": "../dist/piglet-server", "to": "piglet-server" }],
+    "mac": { "target": "dmg", "category": "public.app-category.developer-tools" },
+    "win": { "target": "nsis" },
+    "linux": { "target": ["AppImage", "deb"], "category": "Development" }
+  }
+}
