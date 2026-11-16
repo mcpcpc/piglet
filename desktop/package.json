@@ -3,6 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "description": "piglet desktop shell",
+  "homepage": "https://github.com/mcpcpc/piglet",
   "main": "out/main.js",
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -24,6 +25,10 @@
     "extraResources": [{ "from": "../dist/piglet-server", "to": "piglet-server" }],
     "mac": { "target": "dmg", "category": "public.app-category.developer-tools" },
     "win": { "target": "nsis" },
-    "linux": { "target": ["AppImage", "deb"], "category": "Development" }
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "category": "Development",
+      "maintainer": "Michael Czigler <37268479+mcpcpc@users.noreply.github.com>"
+    }
   }
 }
