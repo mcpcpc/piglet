@@ -7,6 +7,8 @@ export interface PigletNative {
   openExternal(url: string): Promise<void>;
   revealPath(path: string): Promise<void>;
   notify(title: string, body: string): Promise<void>;
+  /** Paint the window's native controls and background (desktop app only). */
+  setWindowColors(colors: { color: string; symbolColor: string }): Promise<void>;
 }
 
 declare global {
@@ -38,6 +40,43 @@ export async function download(url: string, filename: string): Promise<void> {
   document.body.append(anchor);
   anchor.click();
   anchor.remove();
+}
+
+/**
+ * Keep the desktop window's native controls and background in the page's theme: report the
+ * `--bg` and `--fg-muted` tokens now, and again whenever the theme setting, the system color
+ * scheme or the page zoom changes (the shell sizes the controls to the zoomed top bar). Returns
+ * an unsubscribe function; does nothing outside the desktop app.
+ */
+export function syncWindowColors(): () => void {
+  const native = window.pigletNative;
+  if (!native?.setWindowColors) return () => {};
+  const root = document.documentElement;
+  let reported = "";
+  const report = () => {
+    const style = getComputedStyle(root);
+    const color = style.getPropertyValue("--bg").trim();
+    const symbolColor = style.getPropertyValue("--fg-muted").trim();
+    // Zooming changes devicePixelRatio and fires resize; plain resizes repeat the same key.
+    const key = `${color} ${symbolColor} ${window.devicePixelRatio}`;
+    if (!color || !symbolColor || key === reported) return;
+    reported = key;
+    void native.setWindowColors({ color, symbolColor });
+  };
+  report();
+  const observer = new MutationObserver(report);
+  observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+  const scheme =
+    typeof window.matchMedia === "function"
+      ? window.matchMedia("(prefers-color-scheme: dark)")
+      : null;
+  scheme?.addEventListener("change", report);
+  window.addEventListener("resize", report);
+  return () => {
+    observer.disconnect();
+    scheme?.removeEventListener("change", report);
+    window.removeEventListener("resize", report);
+  };
 }
 
 /** Whether app shortcuts use ⌘ (macOS, iPadOS) rather than Ctrl, which macOS keeps for text editing. */

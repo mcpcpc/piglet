@@ -143,7 +143,9 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
       className="flex h-full w-full flex-col border-r border-line bg-subtle"
       aria-label="Projects"
     >
-      <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-3">
+      <div
+        className={`flex h-11 shrink-0 items-center gap-1 border-b border-line ${onDismiss ? "px-3" : "titlebar pl-(--header-pl) pr-3"}`}
+      >
         <span className="font-semibold tracking-tight">piglet</span>
         <button
           type="button"

@@ -12,11 +12,23 @@ import {
   type IpcMainEvent,
   type IpcMainInvokeEvent,
   ipcMain,
+  Menu,
   Notification,
+  nativeTheme,
   shell,
 } from "electron";
+import { menuTemplate } from "./menu";
 
 const READY_TIMEOUT_MS = 30_000;
+/** The window controls' height: the web UI's 44px top bar (h-11) minus its 1px bottom border,
+ *  so the border runs unbroken beneath them. */
+const TITLE_BAR_HEIGHT = 43;
+/** The web UI's --bg and --fg-muted tokens, used until the page reports its own theme. */
+const THEME_COLORS = {
+  light: { color: "#ffffff", symbolColor: "#6b6b68" },
+  dark: { color: "#161616", symbolColor: "#a3a3a0" },
+};
+const HEX_COLOR = /^#[0-9a-f]{3,8}$/i;
 const token = randomBytes(32).toString("base64url");
 let sidecar: ChildProcess | null = null;
 let origin = "";
@@ -93,6 +105,15 @@ function isWebUrl(url: string): boolean {
   }
 }
 
+/** Accept `{color, symbolColor}` from the page only as plain hex colors. */
+function parseWindowColors(value: unknown): { color: string; symbolColor: string } | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { color, symbolColor } = value as Record<string, unknown>;
+  if (typeof color !== "string" || typeof symbolColor !== "string") return null;
+  if (!HEX_COLOR.test(color) || !HEX_COLOR.test(symbolColor)) return null;
+  return { color, symbolColor };
+}
+
 function registerIpc(): void {
   ipcMain.on("piglet:token", (event) => {
     event.returnValue = fromApp(event) ? token : "";
@@ -110,6 +131,18 @@ function registerIpc(): void {
   });
   ipcMain.handle("piglet:reveal-path", (event, target: unknown) => {
     if (fromApp(event) && typeof target === "string") shell.showItemInFolder(target);
+  });
+  // The page reports its theme colors (again whenever its zoom changes) so the native window
+  // controls and the background shown while resizing match it, and the controls stay as tall as
+  // the zoomed top bar. macOS draws its own traffic lights, so only the background applies.
+  ipcMain.handle("piglet:window-colors", (event, value: unknown) => {
+    const colors = parseWindowColors(value);
+    if (!fromApp(event) || !mainWindow || !colors) return;
+    mainWindow.setBackgroundColor(colors.color);
+    if (process.platform !== "darwin") {
+      const height = Math.round(TITLE_BAR_HEIGHT * mainWindow.webContents.getZoomFactor());
+      mainWindow.setTitleBarOverlay({ ...colors, height });
+    }
   });
   ipcMain.handle("piglet:notify", (event, title: unknown, body: unknown) => {
     if (!fromApp(event) || !Notification.isSupported() || mainWindow?.isFocused()) return;
@@ -133,6 +166,7 @@ function guardNavigation(): void {
 }
 
 function createWindow(): void {
+  const colors = nativeTheme.shouldUseDarkColors ? THEME_COLORS.dark : THEME_COLORS.light;
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 840,
@@ -140,6 +174,15 @@ function createWindow(): void {
     minHeight: 480,
     title: "piglet",
     show: false,
+    backgroundColor: colors.color,
+    // No native title bar or menu bar: the web UI's top bar is the title bar. Windows and Linux
+    // draw their native caption buttons over its right end (keeping Windows 11 snap layouts),
+    // macOS keeps its traffic lights at the left, and the page makes room for them through the
+    // titlebar-area-* CSS environment variables. The hidden menu still carries the keyboard
+    // shortcuts in menu.ts.
+    titleBarStyle: "hidden",
+    titleBarOverlay: { ...colors, height: TITLE_BAR_HEIGHT },
+    trafficLightPosition: { x: 16, y: 14 },
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
@@ -156,6 +199,7 @@ function createWindow(): void {
 }
 
 async function start(): Promise<void> {
+  Menu.setApplicationMenu(Menu.buildFromTemplate(menuTemplate(process.platform)));
   registerIpc();
   guardNavigation();
   try {
