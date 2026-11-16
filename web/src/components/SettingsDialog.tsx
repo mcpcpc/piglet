@@ -73,7 +73,8 @@ function useSettings() {
     const cwd = activeView()?.state.cwd ?? null;
     request<SettingsData>("get_settings", { cwd }).then(setData).catch(reportError);
   }, []);
-  useEffect(load, [load]);
+  // No load on mount: SettingsDialog is always mounted, and on page load the socket is still
+  // connecting. It loads each time the dialog opens instead.
   const patch = async (value: Settings) => {
     await request("update_settings", { patch: value });
     load();
