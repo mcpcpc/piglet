@@ -86,7 +86,8 @@ function collectCall(
   files.set(path, [...(files.get(path) ?? []), diff]);
 }
 
-export function Drawer({ view }: { view: SessionView }) {
+/** The Changes/Bash panel; `onDismiss` adds a close button when it is off-canvas. */
+export function Drawer({ view, onDismiss }: { view: SessionView; onDismiss?: () => void }) {
   const tab = useApp((s) => s.drawerTab);
   const { files, commands } = useMemo(() => collect(view), [view]);
   const tabClass = (name: string) =>
@@ -96,7 +97,9 @@ export function Drawer({ view }: { view: SessionView }) {
       className="flex h-full w-full flex-col border-l border-line bg-bg"
       aria-label="Changes and commands"
     >
-      <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-3">
+      <div
+        className={`flex h-11 shrink-0 items-center gap-1 border-b border-line ${onDismiss ? "px-3" : "titlebar pl-3 pr-(--header-pr)"}`}
+      >
         <button
           type="button"
           className={tabClass("changes")}
@@ -107,14 +110,16 @@ export function Drawer({ view }: { view: SessionView }) {
         <button type="button" className={tabClass("bash")} onClick={() => ui.drawer(true, "bash")}>
           Bash {commands.length ? `(${commands.length})` : ""}
         </button>
-        <button
-          type="button"
-          onClick={() => ui.drawer(false)}
-          className="ml-auto rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2.5"
-          aria-label="Close drawer"
-        >
-          <Icon name="close" size={14} />
-        </button>
+        {onDismiss ? (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="ml-auto rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2.5"
+            aria-label="Close drawer"
+          >
+            <Icon name="close" size={14} />
+          </button>
+        ) : null}
       </div>
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
         {tab === "changes" ? (

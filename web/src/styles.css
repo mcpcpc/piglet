@@ -277,3 +277,28 @@ body {
     transition: none !important;
   }
 }
+
+/* Desktop app: the 44px top row is the window's title bar (see desktop/src/main.ts). The native
+   window controls cover its edges: caption buttons at the right on Windows and Linux, traffic
+   lights at the left on macOS. The titlebar-area-* variables only exist there, so every value
+   below is 0 in a browser. Nothing modal covers the row: scrims and panels start below it. */
+:root {
+  --titlebar-left: env(titlebar-area-x, 0px);
+  --titlebar-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw));
+  --titlebar-bottom: calc(env(titlebar-area-height, -1px) + 1px);
+  --header-pl: max(0.75rem, var(--titlebar-left));
+  --header-pr: max(0.75rem, calc(var(--titlebar-right) + 0.5rem));
+}
+
+.titlebar {
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
+/* Controls in the bar stay clickable (and keep their tooltips); so do popovers that collision
+   handling pushes up into it. */
+.titlebar :is(button, a, input, [title]),
+[data-radix-popper-content-wrapper] {
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
+}

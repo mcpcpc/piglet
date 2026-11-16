@@ -10,8 +10,12 @@ import { Icon, Spinner } from "./Icon";
 export function SessionHeader({ view }: { view: SessionView | null }) {
   const sidebarOpen = useApp((s) => s.sidebarOpen);
   const drawerOpen = useApp((s) => s.drawerOpen);
+  // Room for the window controls unless a docked sidebar or drawer holds that edge.
+  const inset = `pl-(--header-pl) pr-(--header-pr) ${sidebarOpen ? "lg:pl-3" : ""} ${view && drawerOpen ? "xl:pr-3" : ""}`;
   return (
-    <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line px-3">
+    <header
+      className={`titlebar flex h-11 shrink-0 items-center gap-2 border-b border-line ${inset}`}
+    >
       {!sidebarOpen ? (
         <button
           type="button"

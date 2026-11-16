@@ -12,4 +12,6 @@ contextBridge.exposeInMainWorld("pigletNative", {
   revealPath: (target: string): Promise<void> => ipcRenderer.invoke("piglet:reveal-path", target),
   notify: (title: string, body: string): Promise<void> =>
     ipcRenderer.invoke("piglet:notify", title, body),
+  setWindowColors: (colors: { color: string; symbolColor: string }): Promise<void> =>
+    ipcRenderer.invoke("piglet:window-colors", colors),
 });

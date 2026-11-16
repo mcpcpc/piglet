@@ -24,7 +24,7 @@ import { Toasts } from "./components/Toasts";
 import { TreeOverlay } from "./components/TreeOverlay";
 import { shikiHighlighter } from "./lib/highlight";
 import { OVERLAY_DRAWER, OVERLAY_SIDEBAR, useMediaQuery } from "./lib/media";
-import { isMac } from "./lib/native";
+import { isMac, syncWindowColors } from "./lib/native";
 import { latestLeaf } from "./lib/tree";
 import { cycleModel, cycleThinking, forkAt, navigateTo } from "./state/actions";
 import type { SessionView } from "./state/sessionView";
@@ -191,6 +191,7 @@ const closeDrawer = () => ui.drawer(false);
 
 export function App() {
   useHotkeys();
+  useEffect(syncWindowColors, []);
   const overlay = useOverlayPanels();
   const view = useApp((s) => (s.activeId ? (s.views[s.activeId] ?? null) : null));
   const sidebarOpen = useApp((s) => s.sidebarOpen);
@@ -199,7 +200,6 @@ export function App() {
   return (
     <HighlighterContext.Provider value={shikiHighlighter}>
       <div className="flex h-full flex-col">
-        <ConnectionBanner />
         <div className="relative flex min-h-0 flex-1">
           {overlay.sidebar ? (
             <OffCanvas
@@ -218,6 +218,7 @@ export function App() {
           ) : null}
           <main className="flex min-w-0 flex-1 flex-col">
             <SessionHeader view={view} />
+            <ConnectionBanner />
             {view ? <SessionPane view={view} /> : <Welcome />}
           </main>
           {view && overlay.drawer ? (
@@ -228,7 +229,7 @@ export function App() {
               title="Changes and commands"
               width="w-[min(560px,100vw)]"
             >
-              <Drawer view={view} />
+              <Drawer view={view} onDismiss={closeDrawer} />
             </OffCanvas>
           ) : view && drawerOpen ? (
             <div className="w-[560px] shrink-0">
