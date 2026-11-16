@@ -15,7 +15,7 @@ export function SessionHeader({ view }: { view: SessionView | null }) {
         <button
           type="button"
           onClick={() => ui.sidebar(true)}
-          className="rounded p-1 text-fg-muted hover:bg-hover"
+          className="rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2.5"
           aria-label="Show sidebar"
         >
           <Icon name="sidebar" />
@@ -52,7 +52,7 @@ export function SessionHeader({ view }: { view: SessionView | null }) {
           <button
             type="button"
             onClick={() => ui.tree(true)}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg"
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:py-2.5"
             title="Session tree (⌘T)"
           >
             <Icon name="branch" size={14} /> tree
@@ -61,7 +61,7 @@ export function SessionHeader({ view }: { view: SessionView | null }) {
         <button
           type="button"
           onClick={() => ui.drawer(!drawerOpen)}
-          className={`rounded-md p-1.5 hover:bg-hover ${drawerOpen ? "text-fg" : "text-fg-muted"}`}
+          className={`rounded-md p-1.5 hover:bg-hover pointer-coarse:p-2.5 ${drawerOpen ? "text-fg" : "text-fg-muted"}`}
           aria-label="Toggle changes and bash drawer"
           title="Changes & bash (⌘J)"
         >

@@ -176,12 +176,12 @@ export function TreeOverlay({ view }: { view: SessionView }) {
               type="button"
               key={name}
               onClick={() => setFilter(name)}
-              className={`rounded-md px-2 py-0.5 text-[12px] ${filter === name ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
+              className={`rounded-md px-2 py-0.5 text-[12px] pointer-coarse:py-2 ${filter === name ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
             >
               {name}
             </button>
           ))}
-          <span className="ml-auto text-[11px] text-fg-faint">
+          <span className="ml-auto text-[11px] text-fg-faint pointer-coarse:hidden">
             ↑↓ select · ⏎ open · f fork · l label
           </span>
         </div>
@@ -189,7 +189,7 @@ export function TreeOverlay({ view }: { view: SessionView }) {
           ref={list}
           role="listbox"
           tabIndex={0}
-          className="max-h-[52vh] overflow-y-auto rounded-md border border-line font-mono text-[12px] outline-none"
+          className="max-h-[52vh] overflow-y-auto rounded-md border border-line font-mono text-[12px] outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25"
         >
           {rows.map((row) => {
             const { kind, text } = describe(row.entry);
@@ -203,8 +203,8 @@ export function TreeOverlay({ view }: { view: SessionView }) {
                 aria-selected={row.entry.id === selected}
                 onClick={() => setSelected(row.entry.id)}
                 onDoubleClick={() => choose(row.entry.id)}
-                className={`flex cursor-pointer items-center gap-2 px-2 py-1 ${row.entry.id === selected ? "bg-hover" : ""}`}
-                style={{ paddingLeft: `${8 + row.depth * 16}px` }}
+                className={`flex cursor-pointer items-center gap-2 px-2 py-1 [--indent:16px] max-sm:[--indent:10px] pointer-coarse:py-2 ${row.entry.id === selected ? "bg-hover" : ""}`}
+                style={{ paddingLeft: `calc(8px + ${row.depth} * var(--indent))` }}
               >
                 <span className={onPath.has(row.entry.id) ? "text-accent" : "text-fg-faint"}>
                   {isLeaf ? "◀" : "●"}
@@ -230,7 +230,7 @@ export function TreeOverlay({ view }: { view: SessionView }) {
               value={custom}
               onChange={(e) => setCustom(e.target.value)}
             />
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button onClick={() => void go(pending, false, null).catch(reportError)}>
                 No summary
               </Button>
@@ -246,7 +246,7 @@ export function TreeOverlay({ view }: { view: SessionView }) {
             </div>
           </div>
         ) : (
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button
               variant="primary"
               disabled={!selected}

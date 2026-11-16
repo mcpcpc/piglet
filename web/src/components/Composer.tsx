@@ -8,6 +8,7 @@ import {
   useState,
 } from "react";
 import { applyCompletion, type CompletionToken, matchCommand, tokenAt } from "../lib/completion";
+import { COARSE_POINTER, useMediaQuery } from "../lib/media";
 import type { ImageContent } from "../protocol/commands";
 import { abort, BUILTIN_COMMANDS, cycleThinking, restoreQueue, send } from "../state/actions";
 import type { SessionView } from "../state/sessionView";
@@ -78,6 +79,10 @@ export function Composer({ view }: { view: SessionView }) {
   const [selected, setSelected] = useState(0);
   const textarea = useRef<HTMLTextAreaElement>(null);
   const streaming = view.state.isStreaming;
+  // Soft keyboards have no Shift+Enter, so on touch devices Return inserts a newline and the
+  // buttons send. A hardware keyboard can still send with ⌘/Ctrl+Enter (Alt+Enter queues).
+  const touch = useMediaQuery(COARSE_POINTER);
+  const canSend = Boolean(draft.trim() || images.length);
 
   useEffect(() => {
     const element = textarea.current;
@@ -150,6 +155,8 @@ export function Composer({ view }: { view: SessionView }) {
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Keys that commit or cancel an IME composition (Safari reports keyCode 229) belong to it.
+    if (event.nativeEvent.isComposing || event.keyCode === 229) return;
     if (items.length && token) {
       if (event.key === "ArrowDown" || event.key === "ArrowUp") {
         event.preventDefault();
@@ -174,7 +181,11 @@ export function Composer({ view }: { view: SessionView }) {
         return;
       }
     }
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+    const sendKey =
+      event.key === "Enter" &&
+      !event.shiftKey &&
+      (!touch || event.metaKey || event.ctrlKey || event.altKey);
+    if (sendKey) {
       event.preventDefault();
       void submit(event.altKey ? "followUp" : "auto");
     } else if (event.key === "Escape" && (streaming || view.bash)) {
@@ -203,15 +214,19 @@ export function Composer({ view }: { view: SessionView }) {
     setImages((current) => [...current, ...dropped]);
   };
 
-  const placeholder = streaming
-    ? "Steer the agent (Enter) or queue a follow-up (Alt+Enter)…"
-    : "Message · / for commands · @ for files · ! to run a shell command";
+  const placeholder = touch
+    ? streaming
+      ? "Steer the agent, or queue a follow-up…"
+      : "Message · / commands · @ files · ! shell"
+    : streaming
+      ? "Steer the agent (Enter) or queue a follow-up (Alt+Enter)…"
+      : "Message · / for commands · @ for files · ! to run a shell command";
 
   return (
     <div className="mx-auto w-full max-w-3xl px-4 pb-3">
       <QueueBar view={view} />
       <div
-        className="relative rounded-lg border border-line bg-bg shadow-sm focus-within:border-fg-faint"
+        className="relative rounded-lg border border-line bg-bg shadow-sm has-[textarea:focus]:border-accent has-[textarea:focus]:ring-2 has-[textarea:focus]:ring-accent/25"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => void onDrop(e)}
       >
@@ -230,7 +245,7 @@ export function Composer({ view }: { view: SessionView }) {
                   e.preventDefault();
                   complete(item);
                 }}
-                className={`flex w-full items-baseline gap-3 rounded px-2 py-1 text-left text-[13px] ${index === selected ? "bg-hover" : ""}`}
+                className={`flex w-full items-baseline gap-3 rounded px-2 py-1 text-left text-[13px] pointer-coarse:py-2 ${index === selected ? "bg-hover" : ""}`}
               >
                 <span className="shrink-0 font-mono">{item.label}</span>
                 <span className="truncate text-[12px] text-fg-faint">{item.detail}</span>
@@ -251,7 +266,7 @@ export function Composer({ view }: { view: SessionView }) {
                   type="button"
                   aria-label="Remove image"
                   onClick={() => setImages((current) => current.filter((_, i) => i !== index))}
-                  className="absolute -right-1.5 -top-1.5 rounded-full border border-line bg-bg p-0.5"
+                  className="absolute -right-1.5 -top-1.5 rounded-full border border-line bg-bg p-0.5 after:absolute after:-inset-2"
                 >
                   <Icon name="close" size={10} />
                 </button>
@@ -272,11 +287,11 @@ export function Composer({ view }: { view: SessionView }) {
           onClick={(e) => updateToken(e.currentTarget.value, e.currentTarget.selectionStart)}
           onKeyDown={onKeyDown}
           onPaste={(e) => void onPaste(e)}
-          className="block max-h-80 w-full resize-none bg-transparent px-3 pb-1 pt-3 text-[14px] leading-relaxed outline-none placeholder:text-fg-faint"
+          className="block max-h-80 w-full resize-none pointer-coarse:max-h-[40dvh] bg-transparent px-3 pb-1 pt-3 text-[14px] leading-relaxed outline-none placeholder:text-fg-faint pointer-coarse:text-base"
         />
         <div className="flex items-center gap-1 px-2 pb-2">
           <label
-            className="cursor-pointer rounded-md p-1 text-fg-muted hover:bg-hover hover:text-fg"
+            className="cursor-pointer rounded-md p-1 text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:p-2.5"
             title="Attach images"
           >
             <Icon name="image" size={15} />
@@ -298,12 +313,33 @@ export function Composer({ view }: { view: SessionView }) {
           {view.state.model?.reasoning ? (
             <ThinkingChip sessionId={view.id} level={view.state.thinkingLevel} />
           ) : null}
-          <div className="ml-auto flex items-center gap-1">
+          <div className="ml-auto flex shrink-0 items-center gap-1">
+            {streaming && canSend ? (
+              <button
+                type="button"
+                onClick={() => void submit("followUp")}
+                className="rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:py-2"
+                title="Queue a follow-up for when the agent finishes (Alt+Enter)"
+              >
+                Queue
+              </button>
+            ) : null}
+            {streaming && canSend ? (
+              <button
+                type="button"
+                onClick={() => void submit("auto")}
+                className="rounded-md bg-accent p-1.5 text-accent-fg hover:opacity-90 pointer-coarse:p-2.5"
+                aria-label="Steer (Enter)"
+                title="Steer the agent now (Enter)"
+              >
+                <Icon name="send" size={14} />
+              </button>
+            ) : null}
             {streaming || view.bash ? (
               <button
                 type="button"
                 onClick={() => abort().catch(reportError)}
-                className="rounded-md bg-fg p-1.5 text-bg hover:opacity-80"
+                className="rounded-md bg-fg p-1.5 text-bg hover:opacity-80 pointer-coarse:p-2.5"
                 aria-label="Stop (Esc)"
                 title="Stop (Esc)"
               >
@@ -313,8 +349,8 @@ export function Composer({ view }: { view: SessionView }) {
               <button
                 type="button"
                 onClick={() => void submit("auto")}
-                disabled={!draft.trim() && !images.length}
-                className="rounded-md bg-accent p-1.5 text-accent-fg hover:opacity-90 disabled:opacity-40"
+                disabled={!canSend}
+                className="rounded-md bg-accent p-1.5 text-accent-fg hover:opacity-90 disabled:opacity-40 pointer-coarse:p-2.5"
                 aria-label="Send (Enter)"
                 title="Send (Enter)"
               >

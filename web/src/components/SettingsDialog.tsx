@@ -368,18 +368,20 @@ function Providers() {
       </p>
       {providers.map((p) => (
         <div key={p.provider} className="rounded-md border border-line px-3 py-2">
-          <div className="flex items-center gap-2 text-[13px]">
-            <span className="font-medium">{p.provider}</span>
-            {p.configured ? (
-              <span className="text-[11px] text-add-fg">
-                {p.type === "oauth" ? "signed in" : "configured"} · {p.source}
-              </span>
-            ) : (
-              <span className="text-[11px] text-fg-faint">
-                {p.envVars.length ? `or set ${p.envVars.join(" / ")}` : ""}
-              </span>
-            )}
-            <span className="ml-auto flex gap-1">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 text-[13px]">
+            <div className="min-w-0">
+              <div className="font-medium [overflow-wrap:anywhere]">{p.provider}</div>
+              {p.configured ? (
+                <div className="text-[11px] text-add-fg">
+                  {p.type === "oauth" ? "signed in" : "configured"} · {p.source}
+                </div>
+              ) : p.envVars.length ? (
+                <div className="text-[11px] text-fg-faint [overflow-wrap:anywhere]">
+                  or set {p.envVars.join(" / ")}
+                </div>
+              ) : null}
+            </div>
+            <span className="flex gap-1">
               <Button
                 variant="ghost"
                 onClick={() => setEditing(editing === p.provider ? null : p.provider)}
@@ -623,13 +625,13 @@ export function SettingsDialog() {
   return (
     <Modal open={open} onClose={ui.close} title="Settings" width="max-w-3xl">
       <div className="flex gap-4 max-sm:flex-col">
-        <nav className="flex w-40 shrink-0 flex-col gap-0.5 max-sm:w-full max-sm:flex-row max-sm:overflow-x-auto">
+        <nav className="flex w-40 shrink-0 flex-col gap-0.5 max-sm:w-full max-sm:flex-row max-sm:flex-wrap max-sm:gap-1">
           {TABS.map(([id, label]) => (
             <button
               type="button"
               key={id}
               onClick={() => ui.open("settings", id)}
-              className={`whitespace-nowrap rounded-md px-2 py-1 text-left text-[13px] ${tab === id ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
+              className={`whitespace-nowrap rounded-md px-2 py-1 text-left text-[13px] pointer-coarse:py-2 ${tab === id ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
             >
               {label}
             </button>

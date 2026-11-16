@@ -17,10 +17,10 @@ export function DiffView({ diff, maxLines }: { diff: string; maxLines?: number }
           {shown.map((line, index) => (
             // biome-ignore lint/suspicious/noArrayIndexKey: diff lines have no stable id
             <tr key={index} className={ROW[line.kind]}>
-              <td className="w-10 select-none px-2 text-right text-fg-faint">
+              <td className="w-10 select-none px-2 text-right text-fg-faint max-sm:hidden">
                 {line.kind === "hunk" ? "" : (line.oldLine ?? "")}
               </td>
-              <td className="w-10 select-none px-2 text-right text-fg-faint">
+              <td className="w-10 select-none px-2 text-right text-fg-faint max-sm:px-1.5">
                 {line.kind === "hunk" ? "" : (line.newLine ?? "")}
               </td>
               <td className="w-4 select-none text-center">

@@ -91,10 +91,10 @@ export function Drawer({ view }: { view: SessionView }) {
   const pinned = useApp((s) => s.drawerPinned);
   const { files, commands } = useMemo(() => collect(view), [view]);
   const tabClass = (name: string) =>
-    `rounded-md px-2 py-1 text-[12px] ${tab === name ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`;
+    `rounded-md px-2 py-1 text-[12px] pointer-coarse:py-2 ${tab === name ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`;
   return (
     <aside
-      className="flex h-full w-[min(560px,100vw)] shrink-0 flex-col border-l border-line bg-bg max-xl:absolute max-xl:inset-y-0 max-xl:right-0 max-xl:z-30 max-xl:shadow-2xl"
+      className="flex h-full w-full flex-col border-l border-line bg-bg"
       aria-label="Changes and commands"
     >
       <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-3">
@@ -118,7 +118,7 @@ export function Drawer({ view }: { view: SessionView }) {
         <button
           type="button"
           onClick={() => ui.drawer(false)}
-          className="rounded p-1 text-fg-muted hover:bg-hover"
+          className="rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2.5"
           aria-label="Close drawer"
         >
           <Icon name="close" size={14} />

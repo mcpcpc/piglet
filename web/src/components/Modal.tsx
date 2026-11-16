@@ -22,12 +22,12 @@ export function Modal({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/30" />
         <Dialog.Content
-          className={`fixed left-1/2 top-[10vh] z-50 flex max-h-[80vh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-lg border border-line bg-bg shadow-xl`}
+          className={`fixed left-1/2 top-[10dvh] z-50 flex max-h-[80dvh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-lg border border-line bg-bg shadow-xl max-sm:top-2 max-sm:max-h-[calc(100dvh-1rem)] max-sm:w-[calc(100vw-1rem)]`}
         >
           <div className="flex items-center border-b border-line px-4 py-3">
             <Dialog.Title className="text-[14px] font-semibold">{title}</Dialog.Title>
             <Dialog.Close
-              className="ml-auto rounded p-1 text-fg-muted hover:bg-hover"
+              className="ml-auto rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2.5"
               aria-label="Close"
             >
               <Icon name="close" size={14} />
@@ -73,12 +73,15 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-md px-3 py-1.5 text-[13px] disabled:opacity-50 ${styles} ${className}`}
+      className={`whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] disabled:opacity-50 pointer-coarse:py-2.5 ${styles} ${className}`}
     >
       {children}
     </button>
   );
 }
 
-export const inputClass =
-  "w-full rounded-md border border-line bg-bg px-2.5 py-1.5 text-[13px] outline-none focus:border-accent";
+// Text fields show focus as an accent border plus a soft halo on their own radius. 16px text on
+// touch devices stops iOS Safari from zooming in when a field is focused.
+export const fieldFocus = "outline-none focus:border-accent focus:ring-2 focus:ring-accent/25";
+
+export const inputClass = `w-full rounded-md border border-line bg-bg px-2.5 py-1.5 text-[13px] pointer-coarse:text-base ${fieldFocus}`;

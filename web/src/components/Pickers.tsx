@@ -6,7 +6,7 @@ import { Icon } from "./Icon";
 import { inputClass } from "./Modal";
 
 const chipClass =
-  "flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg";
+  "flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:py-2";
 
 export function ModelList({
   sessionId,
@@ -46,7 +46,7 @@ export function ModelList({
   };
 
   return (
-    <div className="flex max-h-[60vh] w-80 flex-col">
+    <div className="flex max-h-[60dvh] w-[min(20rem,calc(100vw-2.5rem))] flex-col">
       <input
         className={`${inputClass} mb-2`}
         placeholder="Search models"
@@ -103,7 +103,9 @@ export function ModelChip({ sessionId, model }: { sessionId: string; model: Mode
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger className={chipClass} title="Model (⌘P to cycle)">
-        <span className="max-w-48 truncate">{model ? (model.name ?? model.id) : "No model"}</span>
+        <span className="max-w-48 truncate max-sm:max-w-28">
+          {model ? (model.name ?? model.id) : "No model"}
+        </span>
         <Icon name="chevronDown" size={11} />
       </Popover.Trigger>
       <Popover.Portal>

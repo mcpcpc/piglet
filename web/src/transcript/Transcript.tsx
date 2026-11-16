@@ -92,7 +92,7 @@ function BranchSwitcher({
         type="button"
         aria-label="Previous branch"
         onClick={() => go(-1)}
-        className="hover:text-fg"
+        className="hover:text-fg pointer-coarse:p-1.5"
       >
         <Icon name="chevronLeft" size={12} />
       </button>
@@ -101,7 +101,7 @@ function BranchSwitcher({
         type="button"
         aria-label="Next branch"
         onClick={() => go(1)}
-        className="hover:text-fg"
+        className="hover:text-fg pointer-coarse:p-1.5"
       >
         <Icon name="chevronRight" size={12} />
       </button>
@@ -129,11 +129,11 @@ function UserTurn({
         <span>You</span>
         {label ? <span className="ml-2 rounded bg-muted px-1.5 text-fg-muted">{label}</span> : null}
         {entry && (ctx.actions.editMessage || ctx.actions.forkFrom) ? (
-          <span className="ml-auto flex gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+          <span className="ml-auto flex gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:gap-4 pointer-coarse:opacity-100">
             {ctx.actions.editMessage ? (
               <button
                 type="button"
-                className="hover:text-fg"
+                className="hover:text-fg pointer-coarse:p-1.5"
                 onClick={() => ctx.actions.editMessage?.(entry.id)}
               >
                 Edit
@@ -142,7 +142,7 @@ function UserTurn({
             {ctx.actions.forkFrom ? (
               <button
                 type="button"
-                className="hover:text-fg"
+                className="hover:text-fg pointer-coarse:p-1.5"
                 onClick={() => ctx.actions.forkFrom?.(entry.id)}
               >
                 Fork

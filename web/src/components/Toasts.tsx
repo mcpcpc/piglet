@@ -5,7 +5,7 @@ export function Toasts() {
   const toasts = useApp((s) => s.toasts);
   return (
     <div
-      className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2"
+      className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col gap-2 max-sm:inset-x-2 max-sm:top-2 max-sm:bottom-auto max-sm:w-auto max-sm:max-w-none"
       aria-live="polite"
     >
       {toasts.map((toast) => (
@@ -20,7 +20,7 @@ export function Toasts() {
             type="button"
             aria-label="Dismiss"
             onClick={() => dismissToast(toast.id)}
-            className="text-fg-faint hover:text-fg"
+            className="text-fg-faint hover:text-fg pointer-coarse:-m-2 pointer-coarse:p-2"
           >
             <Icon name="close" size={12} />
           </button>

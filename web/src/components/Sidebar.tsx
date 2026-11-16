@@ -25,7 +25,15 @@ export async function addProject(): Promise<void> {
   }
 }
 
-function SessionRow({ info, cwd }: { info: SessionInfo; cwd: string }) {
+function SessionRow({
+  info,
+  cwd,
+  onOpen,
+}: {
+  info: SessionInfo;
+  cwd: string;
+  onOpen?: () => void;
+}) {
   const activeFile = useApp((s) => (s.activeId ? s.views[s.activeId]?.state.sessionFile : null));
   const live = useApp((s) => Object.values(s.views).find((v) => v.state.sessionFile === info.path));
   const running = live?.state.isStreaming;
@@ -53,8 +61,11 @@ function SessionRow({ info, cwd }: { info: SessionInfo; cwd: string }) {
     >
       <button
         type="button"
-        onClick={() => openSessionFile(info.path).catch(reportError)}
-        className="flex min-w-0 flex-1 items-center gap-2 py-1 pl-6 text-left text-[13px]"
+        onClick={() => {
+          onOpen?.();
+          openSessionFile(info.path).catch(reportError);
+        }}
+        className="flex min-w-0 flex-1 items-center gap-2 py-1 pl-6 text-left text-[13px] pointer-coarse:py-2.5"
         title={title}
       >
         <span className="min-w-0 flex-1 truncate">{title}</span>
@@ -70,7 +81,7 @@ function SessionRow({ info, cwd }: { info: SessionInfo; cwd: string }) {
       </button>
       <Menu.Root>
         <Menu.Trigger
-          className="rounded p-0.5 text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100"
+          className="rounded p-0.5 text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100 pointer-coarse:p-2 pointer-coarse:opacity-100"
           aria-label="Session actions"
         >
           <Icon name="more" size={14} />
@@ -96,11 +107,20 @@ function SessionRow({ info, cwd }: { info: SessionInfo; cwd: string }) {
   );
 }
 
-export function Sidebar() {
+/**
+ * Projects with their sessions. `onDismiss` is set when the sidebar is an off-canvas panel: it
+ * adds a close button and is called after any action that leaves the sidebar.
+ */
+export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
   const projects = useApp((s) => s.projects);
   const expanded = useApp((s) => s.expanded);
   const sessions = useApp((s) => s.sessionsByProject);
   const hello = useApp((s) => s.hello);
+
+  const leave = (action: () => void) => () => {
+    onDismiss?.();
+    action();
+  };
 
   const forget = async (cwd: string) => {
     await request("forget_project", { cwd });
@@ -109,19 +129,31 @@ export function Sidebar() {
 
   return (
     <nav
-      className="flex h-full w-64 shrink-0 flex-col border-r border-line bg-subtle"
+      className="flex h-full w-full flex-col border-r border-line bg-subtle"
       aria-label="Projects"
     >
       <div className="flex items-center gap-2 px-3 py-3">
         <span className="font-semibold tracking-tight">piglet</span>
         <button
           type="button"
-          onClick={() => ui.palette(true)}
-          className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-fg-faint hover:bg-hover"
+          onClick={leave(() => ui.palette(true))}
+          className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-fg-faint hover:bg-hover pointer-coarse:p-2"
+          aria-label="Command palette"
           title="Command palette"
         >
-          ⌘K
+          <span className="pointer-coarse:hidden">⌘K</span>
+          <Icon name="search" size={16} className="hidden pointer-coarse:block" />
         </button>
+        {onDismiss ? (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2"
+            aria-label="Close sidebar"
+          >
+            <Icon name="close" size={16} />
+          </button>
+        ) : null}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
         {projects.length === 0 ? (
@@ -133,7 +165,7 @@ export function Sidebar() {
               <button
                 type="button"
                 onClick={() => toggleProject(project.cwd)}
-                className="flex min-w-0 flex-1 items-center gap-1 py-1 pl-1 text-left text-[12px] font-medium uppercase tracking-wide text-fg-muted"
+                className="flex min-w-0 flex-1 items-center gap-1 py-1 pl-1 text-left text-[12px] font-medium uppercase tracking-wide text-fg-muted pointer-coarse:py-2.5"
                 title={project.cwd}
                 aria-expanded={Boolean(expanded[project.cwd])}
               >
@@ -144,8 +176,8 @@ export function Sidebar() {
               </button>
               <button
                 type="button"
-                onClick={() => newSession(project.cwd).catch(reportError)}
-                className="rounded p-1 text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100"
+                onClick={leave(() => newSession(project.cwd).catch(reportError))}
+                className="rounded p-1 text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100 pointer-coarse:p-2 pointer-coarse:opacity-100"
                 aria-label={`New session in ${project.name}`}
                 title="New session"
               >
@@ -153,7 +185,7 @@ export function Sidebar() {
               </button>
               <Menu.Root>
                 <Menu.Trigger
-                  className="rounded p-1 text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100"
+                  className="rounded p-1 text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100 pointer-coarse:p-2 pointer-coarse:opacity-100"
                   aria-label="Project actions"
                 >
                   <Icon name="more" size={13} />
@@ -187,7 +219,7 @@ export function Sidebar() {
             {expanded[project.cwd] ? (
               <div className="mt-0.5">
                 {(sessions[project.cwd] ?? []).map((info) => (
-                  <SessionRow key={info.path} info={info} cwd={project.cwd} />
+                  <SessionRow key={info.path} info={info} cwd={project.cwd} onOpen={onDismiss} />
                 ))}
                 {(sessions[project.cwd] ?? []).length === 0 ? (
                   <p className="py-1 pl-6 text-[12px] text-fg-faint">No sessions yet</p>
@@ -200,15 +232,15 @@ export function Sidebar() {
       <div className="flex items-center gap-1 border-t border-line px-2 py-2">
         <button
           type="button"
-          onClick={() => addProject().catch(reportError)}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] text-fg-muted hover:bg-hover hover:text-fg"
+          onClick={leave(() => addProject().catch(reportError))}
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:py-2.5"
         >
           <Icon name="folder" size={14} /> Open folder
         </button>
         <button
           type="button"
-          onClick={() => ui.open("settings", "general")}
-          className="ml-auto rounded-md p-1.5 text-fg-muted hover:bg-hover hover:text-fg"
+          onClick={leave(() => ui.open("settings", "general"))}
+          className="ml-auto rounded-md p-1.5 text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:p-2.5"
           aria-label="Settings"
           title={hello ? `Settings · ${hello.agentDir}` : "Settings"}
         >

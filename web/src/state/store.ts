@@ -1,6 +1,7 @@
 // Application state: connection, projects, live session views and UI surfaces.
 
 import { create } from "zustand";
+import { matches, OVERLAY_SIDEBAR } from "../lib/media";
 import { openExternal } from "../lib/native";
 import { type ConnectionStatus, type HelloInfo, PigletClient } from "../protocol/client";
 import type { CommandMap, CommandType } from "../protocol/commands";
@@ -98,7 +99,7 @@ const initial: AppState = {
   drawerOpen: false,
   drawerPinned: false,
   drawerTab: "changes",
-  sidebarOpen: true,
+  sidebarOpen: !matches(OVERLAY_SIDEBAR),
   trustPrompt: null,
   extensionRequests: [],
   extensionStatus: {},

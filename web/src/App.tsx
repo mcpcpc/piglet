@@ -16,11 +16,13 @@ import { Drawer } from "./components/Drawer";
 import { ExtensionDialogs, ExtensionSurfaces } from "./components/ExtensionDialogs";
 import { Icon } from "./components/Icon";
 import { LoginDialog } from "./components/LoginDialog";
+import { OffCanvas } from "./components/OffCanvas";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { addProject, Sidebar } from "./components/Sidebar";
 import { Toasts } from "./components/Toasts";
 import { TreeOverlay } from "./components/TreeOverlay";
 import { shikiHighlighter } from "./lib/highlight";
+import { OVERLAY_DRAWER, OVERLAY_SIDEBAR, useMediaQuery } from "./lib/media";
 import { latestLeaf } from "./lib/tree";
 import { cycleModel, forkAt, navigateTo } from "./state/actions";
 import type { SessionView } from "./state/sessionView";
@@ -56,16 +58,18 @@ function useHotkeys() {
   }, []);
 }
 
-function useNarrowLayout() {
+// Below lg the sidebar, and below xl the drawer, become off-canvas panels. Crossing into a
+// narrow layout closes them so a resized window doesn't come back with a panel over the page.
+function useOverlayPanels() {
+  const sidebar = useMediaQuery(OVERLAY_SIDEBAR);
+  const drawer = useMediaQuery(OVERLAY_DRAWER);
   useEffect(() => {
-    const query = window.matchMedia("(max-width: 900px)");
-    const apply = () => {
-      if (query.matches) ui.sidebar(false);
-    };
-    apply();
-    query.addEventListener("change", apply);
-    return () => query.removeEventListener("change", apply);
-  }, []);
+    if (sidebar) ui.sidebar(false);
+  }, [sidebar]);
+  useEffect(() => {
+    if (drawer) ui.drawer(false);
+  }, [drawer]);
+  return { sidebar, drawer };
 }
 
 function SessionPane({ view }: { view: SessionView }) {
@@ -173,9 +177,12 @@ function ConnectionBanner() {
   );
 }
 
+const closeSidebar = () => ui.sidebar(false);
+const closeDrawer = () => ui.drawer(false);
+
 export function App() {
   useHotkeys();
-  useNarrowLayout();
+  const overlay = useOverlayPanels();
   const view = useApp((s) => (s.activeId ? (s.views[s.activeId] ?? null) : null));
   const sidebarOpen = useApp((s) => s.sidebarOpen);
   const drawerOpen = useApp((s) => s.drawerOpen);
@@ -185,8 +192,18 @@ export function App() {
       <div className="flex h-full flex-col">
         <ConnectionBanner />
         <div className="relative flex min-h-0 flex-1">
-          {sidebarOpen ? (
-            <div className="max-[900px]:absolute max-[900px]:inset-y-0 max-[900px]:left-0 max-[900px]:z-30 max-[900px]:shadow-2xl">
+          {overlay.sidebar ? (
+            <OffCanvas
+              side="left"
+              open={sidebarOpen}
+              onClose={closeSidebar}
+              title="Projects and sessions"
+              width="w-[min(20rem,calc(100vw-3rem))]"
+            >
+              <Sidebar onDismiss={closeSidebar} />
+            </OffCanvas>
+          ) : sidebarOpen ? (
+            <div className="w-64 shrink-0">
               <Sidebar />
             </div>
           ) : null}
@@ -194,7 +211,21 @@ export function App() {
             <SessionHeader view={view} />
             {view ? <SessionPane view={view} /> : <Welcome />}
           </main>
-          {drawerOpen && view ? <Drawer view={view} /> : null}
+          {view && overlay.drawer ? (
+            <OffCanvas
+              side="right"
+              open={drawerOpen}
+              onClose={closeDrawer}
+              title="Changes and commands"
+              width="w-[min(560px,100vw)]"
+            >
+              <Drawer view={view} />
+            </OffCanvas>
+          ) : view && drawerOpen ? (
+            <div className="w-[560px] shrink-0">
+              <Drawer view={view} />
+            </div>
+          ) : null}
         </div>
       </div>
       <CommandPalette />
