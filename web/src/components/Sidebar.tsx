@@ -3,6 +3,7 @@ import { basename, relativeTime } from "../lib/format";
 import { isElectron } from "../lib/native";
 import type { SessionInfo } from "../protocol/types";
 import {
+  askText,
   newSession,
   openProject,
   openSessionFile,
@@ -41,7 +42,12 @@ function SessionRow({
   const title = info.name || info.firstMessage || "New session";
 
   const rename = async () => {
-    const name = window.prompt("Session name", info.name ?? "");
+    const name = await askText({
+      title: "Rename session",
+      initial: info.name ?? "",
+      placeholder: title,
+      submitLabel: "Rename",
+    });
     if (name === null) return;
     const state = await request<{ sessionId: string }>("switch_session", {
       sessionPath: info.path,

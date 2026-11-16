@@ -1,6 +1,5 @@
 // Extension UI requests (select / confirm / input / editor), answered with extension_ui_response.
 
-import { useState } from "react";
 import {
   type ExtensionRequest,
   reportError,
@@ -8,7 +7,7 @@ import {
   resolveExtensionRequest,
   useApp,
 } from "../state/store";
-import { Button, inputClass, Modal } from "./Modal";
+import { Button, Modal, TextForm } from "./Modal";
 
 function respond(
   req: ExtensionRequest,
@@ -26,7 +25,6 @@ function respond(
 
 function RequestBody({ req }: { req: ExtensionRequest }) {
   const params = req.params;
-  const [text, setText] = useState(String(params.prefill ?? ""));
   if (req.method === "select") {
     const options = Array.isArray(params.options) ? params.options.map(String) : [];
     return (
@@ -58,35 +56,13 @@ function RequestBody({ req }: { req: ExtensionRequest }) {
       </div>
     );
   }
-  const multiline = req.method === "editor";
   return (
-    <form
-      className="space-y-2"
-      onSubmit={(e) => {
-        e.preventDefault();
-        respond(req, { value: text });
-      }}
-    >
-      {multiline ? (
-        <textarea
-          className={`${inputClass} h-48 font-mono`}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-        />
-      ) : (
-        <input
-          className={inputClass}
-          placeholder={String(params.placeholder ?? "")}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          // biome-ignore lint/a11y/noAutofocus: the dialog exists to type into
-          autoFocus
-        />
-      )}
-      <Button type="submit" variant="primary">
-        OK
-      </Button>
-    </form>
+    <TextForm
+      initial={String(params.prefill ?? "")}
+      placeholder={String(params.placeholder ?? "")}
+      multiline={req.method === "editor"}
+      onSubmit={(value) => respond(req, { value })}
+    />
   );
 }
 

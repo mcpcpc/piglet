@@ -64,11 +64,23 @@ interface AppState {
   drawerTab: DrawerTab;
   sidebarOpen: boolean;
   trustPrompt: string | null;
+  textPrompt: TextPrompt | null;
   extensionRequests: ExtensionRequest[];
   extensionStatus: Record<string, Record<string, string>>;
   extensionWidgets: Record<string, Record<string, string[]>>;
   login: LoginState | null;
   showThinking: boolean;
+}
+
+/** An open askText() dialog; `resolve` settles the caller's promise. */
+export interface TextPrompt {
+  id: number;
+  title: string;
+  description?: string;
+  initial: string;
+  placeholder?: string;
+  submitLabel?: string;
+  resolve: (value: string | null) => void;
 }
 
 export interface LoginState {
@@ -101,6 +113,7 @@ const initial: AppState = {
   drawerTab: "changes",
   sidebarOpen: !matches(OVERLAY_SIDEBAR),
   trustPrompt: null,
+  textPrompt: null,
   extensionRequests: [],
   extensionStatus: {},
   extensionWidgets: {},
@@ -113,6 +126,7 @@ export const useApp = create<AppState>(() => initial);
 const set = useApp.setState;
 const get = useApp.getState;
 let toastCounter = 0;
+let promptCounter = 0;
 const syncChains = new Map<string, Promise<void>>();
 
 export function request<T = unknown, K extends CommandType = CommandType>(
@@ -381,6 +395,32 @@ export async function cancelLogin(): Promise<void> {
   const login = get().login;
   set({ login: null });
   if (login?.status === "waiting") await request("login_cancel", { loginId: login.loginId });
+}
+
+/**
+ * Ask for one line of text in an in-app dialog, like `window.prompt` (which Electron lacks).
+ * Resolves to the text, or null when cancelled. A newer prompt cancels an open one.
+ */
+export function askText(
+  options: Omit<TextPrompt, "id" | "resolve" | "initial"> & { initial?: string },
+): Promise<string | null> {
+  return new Promise((resolve) => {
+    // Open on the next task so a dropdown menu that triggered the prompt finishes closing and
+    // returning focus first; otherwise it can pull focus out of the new dialog.
+    window.setTimeout(() => {
+      get().textPrompt?.resolve(null);
+      promptCounter += 1;
+      set({ textPrompt: { initial: "", ...options, id: promptCounter, resolve } });
+    }, 0);
+  });
+}
+
+/** Close the askText() dialog, resolving its promise with `value` (null = cancelled). */
+export function answerText(value: string | null): void {
+  const prompt = get().textPrompt;
+  if (!prompt) return;
+  set({ textPrompt: null });
+  prompt.resolve(value);
 }
 
 export function resolveExtensionRequest(requestId: string): void {

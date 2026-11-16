@@ -6,7 +6,7 @@ import { messageText } from "../lib/tree";
 import type { SessionEntry, TreeNode } from "../protocol/types";
 import { cloneCurrent, forkAt, navigateTo } from "../state/actions";
 import type { SessionView } from "../state/sessionView";
-import { reportError, request, ui, useApp } from "../state/store";
+import { askText, reportError, request, ui, useApp } from "../state/store";
 import { Button, inputClass, Modal } from "./Modal";
 
 type Filter = "default" | "no-tools" | "user-only" | "labeled-only" | "all";
@@ -134,7 +134,11 @@ export function TreeOverlay({ view }: { view: SessionView }) {
     }
   };
   const label = async (entryId: string) => {
-    const text = window.prompt("Label (empty to clear)");
+    const text = await askText({
+      title: "Label entry",
+      description: "Labels mark entries in the tree. Leave empty to remove the label.",
+      initial: rows.find((r) => r.entry.id === entryId)?.label ?? "",
+    });
     if (text === null) return;
     await request("set_label", { sessionId: view.id, entryId, label: text || null });
     const data = await request<{ tree: TreeNode[] }>("get_tree", { sessionId: view.id });

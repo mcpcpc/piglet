@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import { Icon } from "./Icon";
 
 export function Modal({
@@ -85,3 +85,57 @@ export function Button({
 export const fieldFocus = "outline-none focus:border-accent focus:ring-2 focus:ring-accent/25";
 
 export const inputClass = `w-full rounded-md border border-line bg-bg px-2.5 py-1.5 text-[13px] pointer-coarse:text-base ${fieldFocus}`;
+
+/**
+ * A dialog body that asks for text: one autofocused line, or a monospace editor when
+ * `multiline`. Submitting (Enter in the line field) calls `onSubmit`; `onCancel` adds a button.
+ */
+export function TextForm({
+  initial = "",
+  placeholder,
+  multiline = false,
+  submitLabel = "OK",
+  onSubmit,
+  onCancel,
+}: {
+  initial?: string;
+  placeholder?: string;
+  multiline?: boolean;
+  submitLabel?: string;
+  onSubmit: (text: string) => void;
+  onCancel?: () => void;
+}) {
+  const [text, setText] = useState(initial);
+  return (
+    <form
+      className="space-y-3"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSubmit(text);
+      }}
+    >
+      {multiline ? (
+        <textarea
+          className={`${inputClass} h-48 font-mono`}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+      ) : (
+        <input
+          className={inputClass}
+          placeholder={placeholder}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          // biome-ignore lint/a11y/noAutofocus: the dialog exists to type into
+          autoFocus
+        />
+      )}
+      <div className="flex gap-2">
+        <Button type="submit" variant="primary">
+          {submitLabel}
+        </Button>
+        {onCancel ? <Button onClick={onCancel}>Cancel</Button> : null}
+      </div>
+    </form>
+  );
+}

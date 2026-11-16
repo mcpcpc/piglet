@@ -10,6 +10,7 @@ import {
   HotkeysDialog,
   ModelsDialog,
   SessionInfoDialog,
+  TextPromptDialog,
   TrustDialog,
 } from "./components/Dialogs";
 import { Drawer } from "./components/Drawer";
@@ -237,6 +238,7 @@ export function App() {
       <ModelsDialog />
       <LoginDialog />
       <ExtensionDialogs />
+      <TextPromptDialog />
       <Toasts />
     </HighlighterContext.Provider>
   );

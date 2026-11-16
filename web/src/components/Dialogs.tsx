@@ -2,9 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { formatCost, formatTokens } from "../lib/format";
-import { activeView, openProject, reportError, request, ui, useApp } from "../state/store";
+import {
+  activeView,
+  answerText,
+  openProject,
+  reportError,
+  request,
+  ui,
+  useApp,
+} from "../state/store";
 import { Icon } from "./Icon";
-import { Button, inputClass, Modal } from "./Modal";
+import { Button, inputClass, Modal, TextForm } from "./Modal";
 import { ModelList } from "./Pickers";
 
 const HOTKEYS: [string, string][] = [
@@ -214,6 +222,25 @@ export function ModelsDialog() {
   return (
     <Modal open={open} onClose={ui.close} title="Choose a model" width="max-w-md">
       <ModelList sessionId={view.id} current={view.state.model} onDone={ui.close} />
+    </Modal>
+  );
+}
+
+/** The dialog behind askText(): rename a session, label a tree entry. */
+export function TextPromptDialog() {
+  const prompt = useApp((s) => s.textPrompt);
+  if (!prompt) return null;
+  const cancel = () => answerText(null);
+  return (
+    <Modal open onClose={cancel} title={prompt.title} description={prompt.description}>
+      <TextForm
+        key={prompt.id}
+        initial={prompt.initial}
+        placeholder={prompt.placeholder}
+        submitLabel={prompt.submitLabel ?? "Save"}
+        onSubmit={answerText}
+        onCancel={cancel}
+      />
     </Modal>
   );
 }
