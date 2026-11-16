@@ -96,9 +96,11 @@ then push a matching tag:
 git tag v0.2.0 && git push origin v0.2.0
 ```
 
-CD reruns the CI checks, confirms the tag matches the version, builds, and creates a **draft**
-release with the installers attached. Try them, then publish the draft. Running CD by hand from
-the Actions tab builds any branch and keeps the installers as workflow artifacts instead.
+Or create the tag with the release itself, from **Create release** on GitHub's Releases page.
+CD reruns the CI checks, confirms the tag matches the version, builds, and attaches the installers
+to that release. A tag pushed without a release gets a new **draft** release instead: try the
+installers, then publish it. Running CD by hand from the Actions tab builds any branch and keeps
+the installers as workflow artifacts instead.
 
 ## License
 
