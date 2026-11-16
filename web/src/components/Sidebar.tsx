@@ -26,6 +26,14 @@ export async function addProject(): Promise<void> {
   }
 }
 
+// Row actions (session ⋯, project + and ⋯) share one box so their icons form a single column
+// with the header's rightmost button. Hover reveals them; touch screens always show them.
+const rowAction =
+  "grid size-6 shrink-0 place-items-center rounded text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100 pointer-coarse:size-8 pointer-coarse:opacity-100";
+// Header buttons fit the 44px header on both pointer types.
+const headerButton =
+  "grid h-6 place-items-center rounded pointer-coarse:size-8 pointer-coarse:px-0";
+
 function SessionRow({
   info,
   cwd,
@@ -71,7 +79,7 @@ function SessionRow({
           onOpen?.();
           openSessionFile(info.path).catch(reportError);
         }}
-        className="flex min-w-0 flex-1 items-center gap-2 py-1 pl-6 text-left text-[13px] pointer-coarse:py-2.5"
+        className="flex min-w-0 flex-1 items-center gap-2 py-1 pl-5 text-left text-[13px] pointer-coarse:py-2.5"
         title={title}
       >
         <span className="min-w-0 flex-1 truncate">{title}</span>
@@ -86,10 +94,7 @@ function SessionRow({
         )}
       </button>
       <Menu.Root>
-        <Menu.Trigger
-          className="rounded p-0.5 text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100 pointer-coarse:p-2 pointer-coarse:opacity-100"
-          aria-label="Session actions"
-        >
+        <Menu.Trigger className={rowAction} aria-label="Session actions">
           <Icon name="more" size={14} />
         </Menu.Trigger>
         <Menu.Portal>
@@ -138,12 +143,12 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
       className="flex h-full w-full flex-col border-r border-line bg-subtle"
       aria-label="Projects"
     >
-      <div className="flex items-center gap-2 px-3 py-3">
+      <div className="flex h-11 shrink-0 items-center gap-1 border-b border-line px-3">
         <span className="font-semibold tracking-tight">piglet</span>
         <button
           type="button"
           onClick={leave(() => ui.palette(true))}
-          className="ml-auto rounded px-1.5 py-0.5 text-[11px] text-fg-faint hover:bg-hover pointer-coarse:p-2"
+          className={`ml-auto min-w-6 px-1 text-[11px] text-fg-faint hover:bg-hover ${headerButton}`}
           aria-label="Command palette"
           title="Command palette"
         >
@@ -154,20 +159,20 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
           <button
             type="button"
             onClick={onDismiss}
-            className="rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2"
+            className={`w-6 text-fg-muted hover:bg-hover ${headerButton}`}
             aria-label="Close sidebar"
           >
             <Icon name="close" size={16} />
           </button>
         ) : null}
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {projects.length === 0 ? (
           <p className="px-2 py-4 text-[13px] text-fg-muted">Open a project folder to start.</p>
         ) : null}
         {projects.map((project) => (
           <div key={project.cwd} className="mb-1">
-            <div className="group flex items-center rounded-md hover:bg-hover">
+            <div className="group flex items-center rounded-md pr-1 hover:bg-hover">
               <button
                 type="button"
                 onClick={() => toggleProject(project.cwd)}
@@ -183,18 +188,15 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
               <button
                 type="button"
                 onClick={leave(() => newSession(project.cwd).catch(reportError))}
-                className="rounded p-1 text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100 pointer-coarse:p-2 pointer-coarse:opacity-100"
+                className={rowAction}
                 aria-label={`New session in ${project.name}`}
                 title="New session"
               >
-                <Icon name="plus" size={13} />
+                <Icon name="plus" size={14} />
               </button>
               <Menu.Root>
-                <Menu.Trigger
-                  className="rounded p-1 text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100 pointer-coarse:p-2 pointer-coarse:opacity-100"
-                  aria-label="Project actions"
-                >
-                  <Icon name="more" size={13} />
+                <Menu.Trigger className={rowAction} aria-label="Project actions">
+                  <Icon name="more" size={14} />
                 </Menu.Trigger>
                 <Menu.Portal>
                   <Menu.Content className="z-50 min-w-40 rounded-md border border-line bg-bg p-1 text-[13px] shadow-lg">
@@ -228,7 +230,7 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
                   <SessionRow key={info.path} info={info} cwd={project.cwd} onOpen={onDismiss} />
                 ))}
                 {(sessions[project.cwd] ?? []).length === 0 ? (
-                  <p className="py-1 pl-6 text-[12px] text-fg-faint">No sessions yet</p>
+                  <p className="py-1 pl-5 text-[12px] text-fg-faint">No sessions yet</p>
                 ) : null}
               </div>
             ) : null}
