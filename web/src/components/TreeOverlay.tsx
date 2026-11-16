@@ -172,14 +172,17 @@ export function TreeOverlay({ view }: { view: SessionView }) {
   };
 
   return (
-    <Modal open={open} onClose={close} title="Session tree" width="max-w-3xl">
-      <div onKeyDown={onKeyDown} className="flex flex-col gap-3">
+    <Modal open={open} onClose={close} title="Session tree" width="max-w-3xl" initialFocus={list}>
+      <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-1">
           {FILTERS.map((name) => (
             <button
               type="button"
               key={name}
-              onClick={() => setFilter(name)}
+              onClick={() => {
+                setFilter(name);
+                list.current?.focus();
+              }}
               className={`rounded-md px-2 py-0.5 text-[12px] pointer-coarse:py-2 ${filter === name ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
             >
               {name}
@@ -192,7 +195,9 @@ export function TreeOverlay({ view }: { view: SessionView }) {
         <div
           ref={list}
           role="listbox"
+          aria-label="Session entries"
           tabIndex={0}
+          onKeyDown={onKeyDown}
           className="max-h-[52vh] overflow-y-auto rounded-md border border-line font-mono text-[12px] outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25"
         >
           {rows.map((row) => {

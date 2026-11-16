@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, type RefObject, useState } from "react";
 import { Icon } from "./Icon";
 
 export function Modal({
@@ -9,6 +9,7 @@ export function Modal({
   children,
   width = "max-w-lg",
   description,
+  initialFocus,
 }: {
   open: boolean;
   onClose: () => void;
@@ -16,12 +17,19 @@ export function Modal({
   children: ReactNode;
   width?: string;
   description?: string;
+  /** Element to focus on open instead of the first focusable one (the close button). */
+  initialFocus?: RefObject<HTMLElement | null>;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/30" />
         <Dialog.Content
+          onOpenAutoFocus={(event) => {
+            if (!initialFocus?.current) return;
+            event.preventDefault();
+            initialFocus.current.focus();
+          }}
           className={`fixed left-1/2 top-[10dvh] z-50 flex max-h-[80dvh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-lg border border-line bg-bg shadow-xl max-sm:top-2 max-sm:max-h-[calc(100dvh-1rem)] max-sm:w-[calc(100vw-1rem)]`}
         >
           <div className="flex items-center border-b border-line px-4 py-3">

@@ -1,6 +1,6 @@
 import * as Menu from "@radix-ui/react-dropdown-menu";
 import { basename, relativeTime } from "../lib/format";
-import { isElectron } from "../lib/native";
+import { isElectron, shortcutLabel } from "../lib/native";
 import type { SessionInfo } from "../protocol/types";
 import {
   askText,
@@ -152,7 +152,7 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
           aria-label="Command palette"
           title="Command palette"
         >
-          <span className="pointer-coarse:hidden">⌘K</span>
+          <span className="pointer-coarse:hidden">{shortcutLabel("K")}</span>
           <Icon name="search" size={16} className="hidden pointer-coarse:block" />
         </button>
         {onDismiss ? (

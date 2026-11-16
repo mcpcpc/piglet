@@ -1,6 +1,7 @@
 // Settings: a GUI over settings.json (global), models.json, auth.json and the project file.
 
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useState } from "react";
+import { shortcutLabel } from "../lib/native";
 import type { ModelInfo } from "../protocol/types";
 import {
   activeView,
@@ -279,7 +280,7 @@ function Models({ data, patch }: { data: SettingsData; patch: (v: Settings) => P
       </Field>
       <Field
         label="Scoped models"
-        hint="One pattern per line (provider/id, globs, :level). Used by ⌘P cycling."
+        hint={`One pattern per line (provider/id, globs, :level). Used by ${shortcutLabel("P")} cycling.`}
       >
         <textarea
           className={`${inputClass} h-24 font-mono`}
@@ -616,6 +617,28 @@ function Project({ data, reload }: { data: SettingsData; reload: () => void }) {
   );
 }
 
+// Arrow keys (either axis, since the tabs stack on phones), Home and End move between tabs and
+// select them; Tab moves on to the panel.
+const TAB_KEYS: Record<string, (index: number) => number> = {
+  ArrowDown: (i) => i + 1,
+  ArrowRight: (i) => i + 1,
+  ArrowUp: (i) => i - 1,
+  ArrowLeft: (i) => i - 1,
+  Home: () => 0,
+  End: () => TABS.length - 1,
+};
+
+function onTabKey(event: KeyboardEvent<HTMLButtonElement>) {
+  const move = TAB_KEYS[event.key];
+  if (!move) return;
+  event.preventDefault();
+  const index = TABS.findIndex(([id]) => `settings-tab-${id}` === event.currentTarget.id);
+  const next = TABS[(move(index) + TABS.length) % TABS.length]?.[0];
+  if (!next) return;
+  ui.open("settings", next);
+  document.getElementById(`settings-tab-${next}`)?.focus();
+}
+
 export function SettingsDialog() {
   const open = useApp((s) => s.dialog === "settings");
   const tab = useApp((s) => s.settingsTab);
@@ -626,19 +649,35 @@ export function SettingsDialog() {
   return (
     <Modal open={open} onClose={ui.close} title="Settings" width="max-w-3xl">
       <div className="flex gap-4 max-sm:flex-col">
-        <nav className="flex w-40 shrink-0 flex-col gap-0.5 max-sm:w-full max-sm:flex-row max-sm:flex-wrap max-sm:gap-1">
+        <div
+          role="tablist"
+          aria-label="Settings sections"
+          aria-orientation="vertical"
+          className="flex w-40 shrink-0 flex-col gap-0.5 max-sm:w-full max-sm:flex-row max-sm:flex-wrap max-sm:gap-1"
+        >
           {TABS.map(([id, label]) => (
             <button
               type="button"
               key={id}
+              id={`settings-tab-${id}`}
+              role="tab"
+              aria-selected={tab === id}
+              aria-controls="settings-panel"
+              tabIndex={tab === id ? 0 : -1}
               onClick={() => ui.open("settings", id)}
+              onKeyDown={onTabKey}
               className={`whitespace-nowrap rounded-md px-2 py-1 text-left text-[13px] pointer-coarse:py-2 ${tab === id ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
             >
               {label}
             </button>
           ))}
-        </nav>
-        <div className="min-w-0 flex-1">
+        </div>
+        <div
+          role="tabpanel"
+          id="settings-panel"
+          aria-labelledby={`settings-tab-${tab}`}
+          className="min-w-0 flex-1"
+        >
           {!data ? null : tab === "general" ? (
             <General data={data} patch={patch} />
           ) : tab === "models" ? (

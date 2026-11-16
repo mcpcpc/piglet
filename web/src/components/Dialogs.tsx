@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatCost, formatTokens } from "../lib/format";
+import { shortcutLabel } from "../lib/native";
 import {
   activeView,
   answerText,
@@ -15,22 +16,24 @@ import { Icon } from "./Icon";
 import { Button, inputClass, Modal, TextForm } from "./Modal";
 import { ModelList } from "./Pickers";
 
-const HOTKEYS: [string, string][] = [
-  ["Enter", "Send (steer while the agent works)"],
-  ["Alt+Enter", "Queue a follow-up"],
-  ["Shift+Enter", "New line"],
-  ["Esc", "Stop the agent"],
-  ["Alt+↑", "Edit queued messages"],
-  ["Shift+Tab", "Cycle thinking level"],
-  ["⌘/Ctrl+P", "Cycle scoped models"],
-  ["⌘/Ctrl+K", "Command palette"],
-  ["⌘/Ctrl+T", "Session tree"],
-  ["⌘/Ctrl+J", "Changes & bash drawer"],
-  ["⌘/Ctrl+B", "Toggle sidebar"],
-  ["⌘/Ctrl+.", "Toggle thinking blocks"],
-  ["⌘/Ctrl+/", "This list"],
-  ["/ … @ … ! …", "Commands, file mentions, shell commands (!! = not sent to the model)"],
-];
+function hotkeys(): [string, string][] {
+  return [
+    ["Enter", "Send (steer while the agent works)"],
+    ["Alt+Enter", "Queue a follow-up"],
+    ["Shift+Enter", "New line"],
+    ["Esc", "Stop the agent"],
+    ["Alt+↑", "Edit queued messages"],
+    [shortcutLabel(".", true), "Cycle thinking level"],
+    [shortcutLabel("P"), "Cycle scoped models"],
+    [shortcutLabel("K"), "Command palette"],
+    [shortcutLabel("T"), "Session tree"],
+    [shortcutLabel("J"), "Changes & bash drawer"],
+    [shortcutLabel("B"), "Toggle sidebar"],
+    [shortcutLabel("."), "Toggle thinking blocks"],
+    [shortcutLabel("/"), "This list"],
+    ["/ … @ … ! …", "Commands, file mentions, shell commands (!! = not sent to the model)"],
+  ];
+}
 
 export function HotkeysDialog() {
   const open = useApp((s) => s.dialog === "hotkeys");
@@ -38,7 +41,7 @@ export function HotkeysDialog() {
     <Modal open={open} onClose={ui.close} title="Keyboard shortcuts">
       <table className="w-full text-[13px]">
         <tbody>
-          {HOTKEYS.map(([keys, action]) => (
+          {hotkeys().map(([keys, action]) => (
             <tr key={keys} className="border-b border-line last:border-0">
               <td className="py-1.5 pr-4 font-mono text-[12px] text-fg-muted">{keys}</td>
               <td className="py-1.5">{action}</td>

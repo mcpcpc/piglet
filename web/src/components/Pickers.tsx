@@ -1,5 +1,6 @@
 import * as Popover from "@radix-ui/react-popover";
 import { useEffect, useMemo, useState } from "react";
+import { shortcutLabel } from "../lib/native";
 import type { ModelInfo } from "../protocol/types";
 import { reportError, request, toast } from "../state/store";
 import { Icon } from "./Icon";
@@ -102,7 +103,7 @@ export function ModelChip({ sessionId, model }: { sessionId: string; model: Mode
   const [open, setOpen] = useState(false);
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger className={chipClass} title="Model (⌘P to cycle)">
+      <Popover.Trigger className={chipClass} title={`Model (${shortcutLabel("P")} to cycle)`}>
         <span className="max-w-48 truncate max-sm:max-w-28">
           {model ? (model.name ?? model.id) : "No model"}
         </span>
@@ -137,7 +138,10 @@ export function ThinkingChip({ sessionId, level }: { sessionId: string; level: s
   };
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger className={chipClass} title="Thinking level (Shift+Tab to cycle)">
+      <Popover.Trigger
+        className={chipClass}
+        title={`Thinking level (${shortcutLabel(".", true)} to cycle)`}
+      >
         think: {level}
         <Icon name="chevronDown" size={11} />
       </Popover.Trigger>

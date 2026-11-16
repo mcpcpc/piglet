@@ -91,6 +91,25 @@ describe("Composer keys", () => {
   });
 });
 
+describe("Composer keyboard access", () => {
+  it("lets Shift+Tab move focus back out of the message box", () => {
+    pointer(false);
+    expect(fireEvent.keyDown(typeDraft("hi"), { key: "Tab", shiftKey: true })).toBe(true);
+  });
+
+  it("opens the file picker from a focusable attach button", () => {
+    pointer(false);
+    const click = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
+    render(<Composer view={createView(state)} />);
+    const attach = screen.getByRole("button", { name: "Attach images" });
+    attach.focus();
+    expect(document.activeElement).toBe(attach);
+    fireEvent.click(attach);
+    expect(click).toHaveBeenCalledOnce();
+    click.mockRestore();
+  });
+});
+
 describe("Composer while the agent runs", () => {
   it("offers tappable steer and queue buttons once there is a draft", () => {
     pointer(true);

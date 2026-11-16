@@ -39,3 +39,15 @@ export async function download(url: string, filename: string): Promise<void> {
   anchor.click();
   anchor.remove();
 }
+
+/** Whether app shortcuts use ⌘ (macOS, iPadOS) rather than Ctrl, which macOS keeps for text editing. */
+export function isMac(): boolean {
+  const platform = window.pigletNative?.platform;
+  if (platform) return platform === "darwin";
+  return /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
+}
+
+/** How to write an app shortcut on this platform: `⌘⇧.` on a Mac, `Ctrl+Shift+.` elsewhere. */
+export function shortcutLabel(key: string, shift = false): string {
+  return isMac() ? `⌘${shift ? "⇧" : ""}${key}` : `Ctrl+${shift ? "Shift+" : ""}${key}`;
+}
