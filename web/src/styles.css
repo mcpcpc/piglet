@@ -206,9 +206,6 @@ body {
   padding: 0.1em 0.3em;
 }
 .prose-piglet pre {
-  background: var(--code-bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
   padding: 0.6em 0.8em;
   overflow-x: auto;
   font-size: 12.5px;
@@ -216,6 +213,26 @@ body {
 .prose-piglet pre code {
   background: none;
   padding: 0;
+}
+/* CodeBlock is the card: border, radius and background live on the wrapper so the Shiki
+   <pre class="shiki"> (forced transparent below) and the plain <pre> render identically.
+   The wrapper also owns the spacing so a trailing code block loses its bottom margin.
+   No overflow: hidden here; it would clip focus rings and trips WebKit's rounded-clip bugs. */
+.prose-piglet .code-block {
+  margin: 0 0 0.75em;
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.prose-piglet > .code-block:last-child,
+.prose-piglet .code-block pre {
+  margin: 0;
+}
+.prose-piglet .code-block pre {
+  border-radius: 0 0 5px 5px; /* inner radius keeps the desktop scrollbar inside the corners */
+}
+.prose-piglet .code-block pre:focus-visible {
+  outline-offset: -2px; /* Shiki's <pre tabindex="0"> ring stays inside the card */
 }
 .prose-piglet a {
   color: var(--accent);

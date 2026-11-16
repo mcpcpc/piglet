@@ -70,6 +70,13 @@ function Images({ content }: { content: UserMessage["content"] }) {
   );
 }
 
+// Turn-header controls share one 20px row. On touch each hit box grows to 32px and an equal
+// negative margin keeps its layout box unchanged, so the row height never shifts.
+const turnAction =
+  "grid size-5 place-items-center rounded hover:bg-hover hover:text-fg pointer-coarse:-m-1.5 pointer-coarse:size-8";
+const branchStep =
+  "grid h-5 w-4 place-items-center rounded hover:bg-hover hover:text-fg pointer-coarse:-mx-2 pointer-coarse:-my-1.5 pointer-coarse:size-8";
+
 function BranchSwitcher({
   entries,
   entry,
@@ -87,22 +94,17 @@ function BranchSwitcher({
     if (target) ctx.actions.switchTo?.(target.id);
   };
   return (
-    <span className="mr-2 inline-flex items-center font-mono text-[11px] text-fg-faint">
+    <span className="-ml-1.5 mr-1 inline-flex items-center font-mono text-[11px] text-fg-faint">
       <button
         type="button"
         aria-label="Previous branch"
         onClick={() => go(-1)}
-        className="hover:text-fg pointer-coarse:p-1.5"
+        className={branchStep}
       >
         <Icon name="chevronLeft" size={12} />
       </button>
       {index + 1}/{siblings.length}
-      <button
-        type="button"
-        aria-label="Next branch"
-        onClick={() => go(1)}
-        className="hover:text-fg pointer-coarse:p-1.5"
-      >
+      <button type="button" aria-label="Next branch" onClick={() => go(1)} className={branchStep}>
         <Icon name="chevronRight" size={12} />
       </button>
     </span>
@@ -124,28 +126,32 @@ function UserTurn({
 }) {
   return (
     <div className="group relative mt-6 first:mt-0">
-      <div className="mb-1 flex items-center text-[11px] text-fg-faint">
+      <div className="mb-1 flex h-5 items-center text-[11px] text-fg-faint">
         {entry ? <BranchSwitcher entries={entries} entry={entry} ctx={ctx} /> : null}
         <span>You</span>
         {label ? <span className="ml-2 rounded bg-muted px-1.5 text-fg-muted">{label}</span> : null}
         {entry && (ctx.actions.editMessage || ctx.actions.forkFrom) ? (
-          <span className="ml-auto flex gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:gap-4 pointer-coarse:opacity-100">
+          <span className="-mr-1 ml-auto flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:gap-3 pointer-coarse:opacity-100">
             {ctx.actions.editMessage ? (
               <button
                 type="button"
-                className="hover:text-fg pointer-coarse:p-1.5"
+                aria-label="Edit message"
+                title="Edit message"
+                className={turnAction}
                 onClick={() => ctx.actions.editMessage?.(entry.id)}
               >
-                Edit
+                <Icon name="edit" size={14} />
               </button>
             ) : null}
             {ctx.actions.forkFrom ? (
               <button
                 type="button"
-                className="hover:text-fg pointer-coarse:p-1.5"
+                aria-label="Fork into a new session"
+                title="Fork into a new session"
+                className={turnAction}
                 onClick={() => ctx.actions.forkFrom?.(entry.id)}
               >
-                Fork
+                <Icon name="fork" size={14} />
               </button>
             ) : null}
           </span>
