@@ -60,7 +60,6 @@ interface AppState {
   paletteOpen: boolean;
   treeOpen: boolean;
   drawerOpen: boolean;
-  drawerPinned: boolean;
   drawerTab: DrawerTab;
   sidebarOpen: boolean;
   trustPrompt: string | null;
@@ -109,7 +108,6 @@ const initial: AppState = {
   paletteOpen: false,
   treeOpen: false,
   drawerOpen: false,
-  drawerPinned: false,
   drawerTab: "changes",
   sidebarOpen: !matches(OVERLAY_SIDEBAR),
   trustPrompt: null,
@@ -435,7 +433,6 @@ export const ui = {
   tree: (open: boolean) => set({ treeOpen: open }),
   drawer: (open: boolean, tab?: DrawerTab) =>
     set((s) => ({ drawerOpen: open, drawerTab: tab ?? s.drawerTab })),
-  pinDrawer: (pinned: boolean) => set({ drawerPinned: pinned, drawerOpen: pinned }),
   sidebar: (open: boolean) => set({ sidebarOpen: open }),
   trust: (cwd: string | null) => set({ trustPrompt: cwd }),
   toggleThinking: () => set((s) => ({ showThinking: !s.showThinking })),

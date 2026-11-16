@@ -88,7 +88,6 @@ function collectCall(
 
 export function Drawer({ view }: { view: SessionView }) {
   const tab = useApp((s) => s.drawerTab);
-  const pinned = useApp((s) => s.drawerPinned);
   const { files, commands } = useMemo(() => collect(view), [view]);
   const tabClass = (name: string) =>
     `rounded-md px-2 py-1 text-[12px] pointer-coarse:py-2 ${tab === name ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`;
@@ -110,15 +109,8 @@ export function Drawer({ view }: { view: SessionView }) {
         </button>
         <button
           type="button"
-          onClick={() => ui.pinDrawer(!pinned)}
-          className="ml-auto rounded px-2 py-1 text-[11px] text-fg-faint hover:bg-hover max-xl:hidden"
-        >
-          {pinned ? "Unpin" : "Pin"}
-        </button>
-        <button
-          type="button"
           onClick={() => ui.drawer(false)}
-          className="rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2.5"
+          className="ml-auto rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2.5"
           aria-label="Close drawer"
         >
           <Icon name="close" size={14} />
