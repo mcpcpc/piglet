@@ -81,9 +81,24 @@ VITE_PIGLET_URL=ws://127.0.0.1:N/ws VITE_PIGLET_TOKEN=dev npm --prefix web run d
 # Desktop app against the local .venv:
 npm --prefix web run build && npm --prefix desktop ci && npm --prefix desktop run dev
 
-# Packaged desktop app (run on each target OS; CI does this on workflow_dispatch):
+# Packaged desktop app (run on each target OS; the CD workflow does this, see below):
 pip install -e ".[build]" && python scripts/build_sidecar.py && npm --prefix desktop run dist
 ```
+
+### Releases
+
+The CD workflow (`.github/workflows/cd.yml`) builds the installers for Windows (`.exe`), macOS
+(Apple Silicon `.dmg`) and Linux (`.AppImage`, `.deb`). To release, set the same version in
+`pyproject.toml`, `src/piglet/__init__.py`, `desktop/package.json` and `web/package.json`, merge,
+then push a matching tag:
+
+```bash
+git tag v0.2.0 && git push origin v0.2.0
+```
+
+CD reruns the CI checks, confirms the tag matches the version, builds, and creates a **draft**
+release with the installers attached. Try them, then publish the draft. Running CD by hand from
+the Actions tab builds any branch and keeps the installers as workflow artifacts instead.
 
 ## License
 
