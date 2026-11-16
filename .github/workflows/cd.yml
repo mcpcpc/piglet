@@ -1,0 +1,98 @@
+name: Continuous Delivery (CD)
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+# A pushed vX.Y.Z tag builds the installers and attaches them to a draft release. A manual run
+# builds the chosen branch and keeps the installers as workflow artifacts only.
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
+  # Installer names come from desktop/package.json, so a tag that disagrees with the version files
+  # would ship misnamed files. A manual run checks that the four files agree with each other.
+  version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check the version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            want="${GITHUB_REF_NAME#v}"
+          else
+            want="$(jq -r .version desktop/package.json)"
+          fi
+          status=0
+          check() {
+            if [ "$2" != "$want" ]; then
+              echo "::error file=$1::version '$2' does not match $want"
+              status=1
+            fi
+          }
+          check pyproject.toml "$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')"
+          check src/piglet/__init__.py "$(sed -n 's/^__version__ = "\(.*\)"$/\1/p' src/piglet/__init__.py)"
+          check desktop/package.json "$(jq -r .version desktop/package.json)"
+          check web/package.json "$(jq -r .version web/package.json)"
+          [ "$status" = 0 ] && echo "version $want"
+          exit "$status"
+
+  build:
+    needs: [checks, version]
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+      - run: python -m pip install -e ".[build]"
+      - run: npm --prefix web ci
+      - run: npm --prefix web run build
+      - run: python scripts/build_sidecar.py
+      - run: npm --prefix desktop ci
+      - run: npm --prefix desktop run dist
+      # Only the installers; desktop/dist also holds the unpacked apps and update metadata.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: piglet-${{ matrix.os }}
+          path: |
+            desktop/dist/*Setup*.exe
+            desktop/dist/*.dmg
+            desktop/dist/*.AppImage
+            desktop/dist/*.deb
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: installers
+          merge-multiple: true
+      - name: Create a draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >
+          gh release create "$GITHUB_REF_NAME" installers/*
+          --repo "$GITHUB_REPOSITORY"
+          --title "piglet $GITHUB_REF_NAME"
+          --draft
+          --verify-tag
+          --generate-notes
