@@ -64,9 +64,11 @@ class TruncateTest(unittest.TestCase):
 class PathTest(TmpCase):
     def test_resolve(self):
         self.assertEqual(resolve_path("@src/a.py", self.cwd), self.cwd / "src/a.py")
-        self.assertEqual(resolve_path("/abs", self.cwd), Path("/abs"))
+        # A rooted path stays at the root: "/abs" on POSIX, the cwd's drive ("C:\abs") on Windows.
+        root = Path(self.cwd.anchor)
+        self.assertEqual(resolve_path("/abs", self.cwd), root / "abs")
         self.assertEqual(display_path(self.cwd / "a", self.cwd), "a")
-        self.assertEqual(display_path(Path("/elsewhere"), self.cwd), "/elsewhere")
+        self.assertEqual(display_path(root / "elsewhere", self.cwd), str(root / "elsewhere"))
 
 
 class ReadTest(TmpCase):
