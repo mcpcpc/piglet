@@ -112,6 +112,30 @@ class AnthropicTest(unittest.TestCase):
         self.assertEqual(events[-1]["type"], "error")
         self.assertEqual(events[-1]["error"]["errorMessage"], "Overloaded")
 
+    def test_error_event_closes_the_http_response(self):
+        class TrackedStream(httpx.AsyncByteStream):
+            closed = False
+
+            async def __aiter__(self):
+                yield (FIXTURES / "anthropic_error.sse").read_bytes()
+
+            async def aclose(self):
+                TrackedStream.closed = True
+
+        transport = httpx.MockTransport(lambda request: httpx.Response(200, stream=TrackedStream()))
+        client = HttpModelClient(HttpxTransport(httpx.AsyncClient(transport=transport)))
+
+        async def run():
+            events = await collect(
+                client, make_model("anthropic-messages"), Context("", [USER]), StreamOptions()
+            )
+            # Checked inside the loop: asyncio.run would otherwise close leftover generators.
+            return events, TrackedStream.closed
+
+        events, closed = asyncio.run(run())
+        self.assertEqual(events[-1]["type"], "error")
+        self.assertTrue(closed)
+
     def test_http_error_has_status(self):
         client = client_for(None, [], status=401)
         events = asyncio.run(

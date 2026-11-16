@@ -313,8 +313,13 @@ async def stream_with_adapter(
     try:
         request = adapter.build(model, context, options)
         lines = transport.stream_lines(request)
-        async for event in _abortable(adapter.parse(parse_sse(lines), builder), signal):
-            yield event
+        try:
+            async for event in _abortable(adapter.parse(parse_sse(lines), builder), signal):
+                yield event
+        finally:
+            # An error event, an abort or a parse failure leaves the line stream suspended with
+            # the HTTP response open; close it now rather than whenever it is garbage-collected.
+            await aclose_quietly(lines)
         for event in builder.close_all():
             yield event
         yield builder.finish(builder.message["stopReason"])
