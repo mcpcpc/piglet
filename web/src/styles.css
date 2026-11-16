@@ -1,0 +1,262 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f6f6f5;
+  --bg-muted: #eeeeec;
+  --bg-hover: #e8e8e6;
+  --fg: #1c1c1b;
+  --fg-muted: #6b6b68;
+  --fg-faint: #9b9b97;
+  --border: #e3e3e0;
+  --accent: #b4467a;
+  --accent-fg: #ffffff;
+  --running: #2f6fd1;
+  --danger: #c43a3a;
+  --warning: #b7791f;
+  --add-bg: #e6f4ea;
+  --add-fg: #1f6b35;
+  --del-bg: #fbe9e9;
+  --del-fg: #9e2c2c;
+  --code-bg: #f6f6f5;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161616;
+    --bg-subtle: #1d1d1c;
+    --bg-muted: #262625;
+    --bg-hover: #2e2e2d;
+    --fg: #ececea;
+    --fg-muted: #a3a3a0;
+    --fg-faint: #6f6f6c;
+    --border: #2f2f2e;
+    --accent: #e08ab3;
+    --accent-fg: #1a1a1a;
+    --running: #6ea2f0;
+    --danger: #f07a7a;
+    --warning: #e0b05a;
+    --add-bg: #17301f;
+    --add-fg: #8fd6a2;
+    --del-bg: #3a1c1c;
+    --del-fg: #f0a0a0;
+    --code-bg: #1d1d1c;
+    color-scheme: dark;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg: #161616;
+  --bg-subtle: #1d1d1c;
+  --bg-muted: #262625;
+  --bg-hover: #2e2e2d;
+  --fg: #ececea;
+  --fg-muted: #a3a3a0;
+  --fg-faint: #6f6f6c;
+  --border: #2f2f2e;
+  --accent: #e08ab3;
+  --accent-fg: #1a1a1a;
+  --running: #6ea2f0;
+  --danger: #f07a7a;
+  --warning: #e0b05a;
+  --add-bg: #17301f;
+  --add-fg: #8fd6a2;
+  --del-bg: #3a1c1c;
+  --del-fg: #f0a0a0;
+  --code-bg: #1d1d1c;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-subtle: var(--bg-subtle);
+  --color-muted: var(--bg-muted);
+  --color-hover: var(--bg-hover);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-faint: var(--fg-faint);
+  --color-line: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-running: var(--running);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-add-bg: var(--add-bg);
+  --color-add-fg: var(--add-fg);
+  --color-del-bg: var(--del-bg);
+  --color-del-fg: var(--del-fg);
+  --color-code: var(--code-bg);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+/* Off-canvas panels (OffCanvas.tsx). Exit animations hold their end frame until Radix unmounts. */
+@theme {
+  --animate-slide-in-left: slide-in-left 200ms ease-out;
+  --animate-slide-out-left: slide-out-left 150ms ease-in forwards;
+  --animate-slide-in-right: slide-in-right 200ms ease-out;
+  --animate-slide-out-right: slide-out-right 150ms ease-in forwards;
+  --animate-fade-in: fade-in 200ms ease-out;
+  --animate-fade-out: fade-out 150ms ease-in forwards;
+
+  @keyframes slide-in-left {
+    from {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes slide-out-left {
+    to {
+      transform: translateX(-100%);
+    }
+  }
+  @keyframes slide-in-right {
+    from {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes slide-out-right {
+    to {
+      transform: translateX(100%);
+    }
+  }
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+/* dvh tracks mobile browser toolbars (and, with interactive-widget, the on-screen keyboard). */
+#root {
+  height: 100dvh;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Layered so utilities such as outline-none can override it. Text fields draw their own
+   border-and-halo instead (see inputClass and the composer). */
+@layer base {
+  *:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+.prose-piglet {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.prose-piglet p,
+.prose-piglet ul,
+.prose-piglet ol,
+.prose-piglet pre,
+.prose-piglet table,
+.prose-piglet blockquote {
+  margin: 0 0 0.75em;
+}
+.prose-piglet > :last-child {
+  margin-bottom: 0;
+}
+.prose-piglet ul {
+  list-style: disc;
+  padding-left: 1.4em;
+}
+.prose-piglet ol {
+  list-style: decimal;
+  padding-left: 1.4em;
+}
+.prose-piglet h1,
+.prose-piglet h2,
+.prose-piglet h3 {
+  font-weight: 600;
+  margin: 1em 0 0.5em;
+}
+.prose-piglet h1 {
+  font-size: 1.25em;
+}
+.prose-piglet h2 {
+  font-size: 1.1em;
+}
+.prose-piglet code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background: var(--bg-muted);
+  border-radius: 4px;
+  padding: 0.1em 0.3em;
+}
+.prose-piglet pre {
+  background: var(--code-bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6em 0.8em;
+  overflow-x: auto;
+  font-size: 12.5px;
+}
+.prose-piglet pre code {
+  background: none;
+  padding: 0;
+}
+.prose-piglet a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+.prose-piglet table {
+  border-collapse: collapse;
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+}
+.prose-piglet th,
+.prose-piglet td {
+  border: 1px solid var(--border);
+  padding: 0.25em 0.6em;
+  overflow-wrap: normal;
+}
+.prose-piglet blockquote {
+  border-left: 3px solid var(--border);
+  padding-left: 0.8em;
+  color: var(--fg-muted);
+}
+
+.shiki,
+.shiki span {
+  background-color: transparent !important;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .shiki,
+  :root:not([data-theme="light"]) .shiki span {
+    color: var(--shiki-dark) !important;
+  }
+}
+:root[data-theme="dark"] .shiki,
+:root[data-theme="dark"] .shiki span {
+  color: var(--shiki-dark) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
