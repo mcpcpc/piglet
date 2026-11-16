@@ -24,19 +24,27 @@ import { Toasts } from "./components/Toasts";
 import { TreeOverlay } from "./components/TreeOverlay";
 import { shikiHighlighter } from "./lib/highlight";
 import { OVERLAY_DRAWER, OVERLAY_SIDEBAR, useMediaQuery } from "./lib/media";
+import { isMac } from "./lib/native";
 import { latestLeaf } from "./lib/tree";
-import { cycleModel, forkAt, navigateTo } from "./state/actions";
+import { cycleModel, cycleThinking, forkAt, navigateTo } from "./state/actions";
 import type { SessionView } from "./state/sessionView";
 import { reportError, ui, useApp } from "./state/store";
 import { HighlighterContext } from "./transcript/Markdown";
 import { Transcript, type TranscriptActions } from "./transcript/Transcript";
 
-function useHotkeys() {
+/** App-wide ⌘ (macOS) or Ctrl (elsewhere) shortcuts; exported for tests. */
+export function useHotkeys() {
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      const mod = event.metaKey || event.ctrlKey;
+      // ⌘ on macOS only: there Ctrl+K/P/B/T are text-editing keys inside fields.
+      const mod = isMac() ? event.metaKey : event.ctrlKey;
       if (!mod) return;
       const state = useApp.getState();
+      if (event.shiftKey && event.code === "Period") {
+        event.preventDefault();
+        if (state.activeId) void cycleThinking().catch(reportError);
+        return;
+      }
       const key = event.key.toLowerCase();
       const actions: Record<string, () => void> = {
         k: () => ui.palette(!state.paletteOpen),

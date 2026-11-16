@@ -1,6 +1,7 @@
 // The session header (project › session, tree, drawer) and the status line.
 
 import { basename, formatCost, formatTokens, shortPath } from "../lib/format";
+import { shortcutLabel } from "../lib/native";
 import type { SessionView } from "../state/sessionView";
 import { reportError, request, toast, ui, useApp } from "../state/store";
 import { ExtensionSurfaces } from "./ExtensionDialogs";
@@ -53,7 +54,7 @@ export function SessionHeader({ view }: { view: SessionView | null }) {
             type="button"
             onClick={() => ui.tree(true)}
             className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:py-2.5"
-            title="Session tree (⌘T)"
+            title={`Session tree (${shortcutLabel("T")})`}
           >
             <Icon name="branch" size={14} /> tree
           </button>
@@ -63,7 +64,7 @@ export function SessionHeader({ view }: { view: SessionView | null }) {
           onClick={() => ui.drawer(!drawerOpen)}
           className={`rounded-md p-1.5 hover:bg-hover pointer-coarse:p-2.5 ${drawerOpen ? "text-fg" : "text-fg-muted"}`}
           aria-label="Toggle changes and bash drawer"
-          title="Changes & bash (⌘J)"
+          title={`Changes & bash (${shortcutLabel("J")})`}
         >
           <Icon name="panel" size={15} />
         </button>

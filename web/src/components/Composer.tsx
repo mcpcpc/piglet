@@ -10,7 +10,7 @@ import {
 import { applyCompletion, type CompletionToken, matchCommand, tokenAt } from "../lib/completion";
 import { COARSE_POINTER, useMediaQuery } from "../lib/media";
 import type { ImageContent } from "../protocol/commands";
-import { abort, BUILTIN_COMMANDS, cycleThinking, restoreQueue, send } from "../state/actions";
+import { abort, BUILTIN_COMMANDS, restoreQueue, send } from "../state/actions";
 import type { SessionView } from "../state/sessionView";
 import { reportError, request, setDraft, useApp } from "../state/store";
 import { Icon } from "./Icon";
@@ -78,6 +78,7 @@ export function Composer({ view }: { view: SessionView }) {
   const [files, setFiles] = useState<string[]>([]);
   const [selected, setSelected] = useState(0);
   const textarea = useRef<HTMLTextAreaElement>(null);
+  const fileInput = useRef<HTMLInputElement>(null);
   const streaming = view.state.isStreaming;
   // Soft keyboards have no Shift+Enter, so on touch devices Return inserts a newline and the
   // buttons send. A hardware keyboard can still send with ⌘/Ctrl+Enter (Alt+Enter queues).
@@ -164,7 +165,8 @@ export function Composer({ view }: { view: SessionView }) {
         setSelected((s) => (s + delta + items.length) % items.length);
         return;
       }
-      if (event.key === "Tab" || (event.key === "Enter" && !event.shiftKey && !event.altKey)) {
+      const accept = event.key === "Tab" || (event.key === "Enter" && !event.altKey);
+      if (accept && !event.shiftKey) {
         const item = items[selected];
         if (
           item &&
@@ -191,9 +193,6 @@ export function Composer({ view }: { view: SessionView }) {
     } else if (event.key === "Escape" && (streaming || view.bash)) {
       event.preventDefault();
       void abort().catch(reportError);
-    } else if (event.key === "Tab" && event.shiftKey) {
-      event.preventDefault();
-      void cycleThinking().catch(reportError);
     } else if (event.key === "ArrowUp" && event.altKey) {
       event.preventDefault();
       void restoreQueue().catch(reportError);
@@ -290,25 +289,30 @@ export function Composer({ view }: { view: SessionView }) {
           className="block max-h-80 w-full resize-none pointer-coarse:max-h-[40dvh] bg-transparent px-3 pb-1 pt-3 text-[14px] leading-relaxed outline-none placeholder:text-fg-faint pointer-coarse:text-base"
         />
         <div className="flex items-center gap-1 px-2 pb-2">
-          <label
-            className="cursor-pointer rounded-md p-1 text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:p-2.5"
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            className="rounded-md p-1 text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:p-2.5"
+            aria-label="Attach images"
             title="Attach images"
           >
             <Icon name="image" size={15} />
-            <input
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={(e) => {
-                const input = e.currentTarget;
-                readImages(input.files ?? [])
-                  .then((added) => setImages((current) => [...current, ...added]))
-                  .catch(reportError);
-                input.value = "";
-              }}
-            />
-          </label>
+          </button>
+          <input
+            ref={fileInput}
+            type="file"
+            accept="image/*"
+            multiple
+            hidden
+            tabIndex={-1}
+            onChange={(e) => {
+              const input = e.currentTarget;
+              readImages(input.files ?? [])
+                .then((added) => setImages((current) => [...current, ...added]))
+                .catch(reportError);
+              input.value = "";
+            }}
+          />
           <ModelChip sessionId={view.id} model={view.state.model} />
           {view.state.model?.reasoning ? (
             <ThinkingChip sessionId={view.id} level={view.state.thinkingLevel} />
