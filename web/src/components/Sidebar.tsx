@@ -16,6 +16,7 @@ import {
   useApp,
 } from "../state/store";
 import { Icon } from "./Icon";
+import { Logo } from "./Logo";
 
 export async function addProject(): Promise<void> {
   if (isElectron()) {
@@ -146,7 +147,10 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
       <div
         className={`flex h-11 shrink-0 items-center gap-1 border-b border-line ${onDismiss ? "px-3" : "titlebar pl-(--header-pl) pr-3"}`}
       >
-        <span className="font-semibold tracking-tight">piglet</span>
+        <span className="flex items-center gap-1.5 font-semibold tracking-tight">
+          <Logo className="text-accent" />
+          piglet
+        </span>
         <button
           type="button"
           onClick={leave(() => ui.palette(true))}

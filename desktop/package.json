@@ -20,7 +20,7 @@
   "build": {
     "appId": "dev.piglet.app",
     "productName": "piglet",
-    "directories": { "output": "dist" },
+    "directories": { "output": "dist", "buildResources": "resources" },
     "files": ["out/**", "package.json"],
     "extraResources": [{ "from": "../dist/piglet-server", "to": "piglet-server" }],
     "mac": { "target": "dmg", "category": "public.app-category.developer-tools" },

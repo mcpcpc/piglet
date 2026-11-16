@@ -17,6 +17,7 @@ import { Drawer } from "./components/Drawer";
 import { ExtensionDialogs, ExtensionSurfaces } from "./components/ExtensionDialogs";
 import { Icon } from "./components/Icon";
 import { LoginDialog } from "./components/LoginDialog";
+import { Logo } from "./components/Logo";
 import { OffCanvas } from "./components/OffCanvas";
 import { SettingsDialog } from "./components/SettingsDialog";
 import { addProject, Sidebar } from "./components/Sidebar";
@@ -152,6 +153,7 @@ function Welcome() {
   return (
     <div className="flex flex-1 items-center justify-center p-8">
       <div className="max-w-sm text-center">
+        <Logo size={56} className="mx-auto mb-3 block text-accent" />
         <p className="text-[16px] font-medium">piglet</p>
         <p className="mt-2 text-[13px] text-fg-muted">
           {projects.length
