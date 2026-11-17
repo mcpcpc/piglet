@@ -7,6 +7,7 @@ import {
   activate,
   activeView,
   newSession,
+  openCredentials,
   refreshCommands,
   refreshSessions,
   reportError,
@@ -186,11 +187,15 @@ export const BUILTIN_COMMANDS: BuiltinCommand[] = [
     description: "Edit the models used for cycling",
     run: () => ui.open("settings", "models"),
   },
-  { name: "login", description: "Sign in to a provider", run: () => ui.open("login") },
+  {
+    name: "login",
+    description: "Sign in or add an API key",
+    run: (args) => openCredentials("login", args),
+  },
   {
     name: "logout",
-    description: "Remove provider credentials",
-    run: () => ui.open("settings", "providers"),
+    description: "Remove a saved sign-in or API key",
+    run: (args) => openCredentials("logout", args),
   },
   {
     name: "trust",

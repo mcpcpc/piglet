@@ -110,7 +110,7 @@ COMMANDS: dict[str, tuple[bool, dict[str, tuple[Any, Any]]]] = {
     "auth_status": (False, {}),
     "set_api_key": (False, {"provider": (str, ...), "key": (str, ...)}),
     "logout": (False, {"provider": (str, ...)}),
-    "login_start": (False, {"provider": (str, ...)}),
+    "login_start": (False, {"provider": (str, ...), "account": (str | None, None)}),
     "login_respond": (False, {"loginId": (str, ...), "value": (str, ...)}),
     "login_cancel": (False, {"loginId": (str, ...)}),
     "login_providers": (False, {}),

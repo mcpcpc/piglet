@@ -23,6 +23,7 @@ const PATHS: Record<string, string> = {
   sidebar: "M2.5 3.5h11v9h-11zM6 3.5v9",
   dot: "M8 6.5a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z",
   more: "M4 8h.01M8 8h.01M12 8h.01",
+  external: "M9 2.5h4.5V7M13.5 2.5L7.5 8.5M11.5 9.5v4h-9v-9h4",
 };
 
 export function Icon({

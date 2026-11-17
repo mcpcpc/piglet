@@ -288,7 +288,11 @@ export type AgentEvent =
 export interface LoginEvent {
   type: "login_event";
   loginId: string;
-  kind: "auth_url" | "progress" | "success" | "error" | "cancelled";
+  kind: "auth_url" | "progress" | "input_error" | "success" | "error" | "cancelled";
+  /** auth_url: the saved account this sign-in reuses (null for a new registration). */
+  account?: SavedAccount | null;
+  /** error: a machine-readable reason, e.g. "account_mismatch". */
+  code?: string;
   url?: string;
   message?: string;
   provider?: string;
@@ -307,4 +311,43 @@ export interface ResponseFrame {
   success: boolean;
   data?: unknown;
   error?: string;
+}
+
+/** A saved sign-in account a new sign-in can reuse (Sign in with ChatGPT). */
+export interface SavedAccount {
+  id: string;
+  label: string;
+}
+
+/** Why a configured credential can't be used as is. */
+export type CredentialProblem = "expired" | "unresolved" | "blank" | "invalid";
+
+/** One place a provider's credential comes from; `auth_status` lists them in priority order. */
+export type CredentialSource =
+  | {
+      kind: "stored";
+      type: "api_key" | "oauth";
+      problem: CredentialProblem | null;
+      missingVar?: string;
+    }
+  | { kind: "models.json"; problem: CredentialProblem | null; missingVar?: string }
+  | { kind: "env"; envVar: string; problem: null };
+
+/** A provider's credential status (`auth_status`). */
+export interface ProviderAuth {
+  id: string;
+  name: string;
+  /** Label for the API key field; null when piglet can't configure a key for it. */
+  keyLabel: string | null;
+  login: { account: string; subscription: boolean; accounts: SavedAccount[] } | null;
+  /** Present sources in priority order; the first is the one piglet uses. */
+  sources: CredentialSource[];
+  envVars: string[];
+  keywords: string[];
+}
+
+export interface AuthStatus {
+  providers: ProviderAuth[];
+  /** User-facing problems with models.json. */
+  warnings: string[];
 }

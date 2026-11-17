@@ -101,6 +101,19 @@ class SettingsStoreTest(unittest.TestCase):
         self.assertEqual(store.load(), {})
         self.assertEqual(len(store.errors), 1)
 
+    def test_device_id_is_created_once_in_global_settings(self):
+        store = s.SettingsStore(self.agent, self.cwd, project_trusted=True)
+        store.replace_project({"deviceId": "from-project"})
+        first = store.device_id()
+        self.assertRegex(first, r"^[0-9a-f-]{36}$")
+        self.assertEqual(store.device_id(), first)
+        self.assertEqual(s.SettingsStore(self.agent).read_global()["deviceId"], first)
+
+    def test_device_id_keeps_existing_value(self):
+        store = s.SettingsStore(self.agent)
+        store.set_global("deviceId", "kept")
+        self.assertEqual(store.device_id(), "kept")
+
     def test_replace_project(self):
         store = s.SettingsStore(self.agent, self.cwd, project_trusted=True)
         store.replace_project({"theme": "dark"})
