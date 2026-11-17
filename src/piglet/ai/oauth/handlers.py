@@ -13,7 +13,7 @@ def oauth_handlers(ctx: ServerContext, manager: OAuthManager) -> dict[str, Handl
     manager.listener = lambda event: ctx.hub.broadcast(None, event)
 
     async def start(c: Any) -> dict[str, Any]:  # noqa: ANN401
-        return {"loginId": manager.start(c.provider)}
+        return {"loginId": manager.start(c.provider, c.account)}
 
     async def respond(c: Any) -> None:  # noqa: ANN401
         manager.respond(c.loginId, c.value)

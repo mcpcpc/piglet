@@ -4,16 +4,18 @@ from __future__ import annotations
 
 import json
 import os
-from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+import time
+from collections.abc import Awaitable, Callable, Mapping
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel
 
-from piglet.ai.registry import is_supported
-from piglet.config.auth import ENV_API_KEYS, AuthStore, env_api_key
+from piglet.ai.registry import apply_models_config, is_supported, load_catalog
+from piglet.config.auth import AuthStore
 from piglet.config.jsonfile import dump_json, read_json, read_text, write_text_atomic
+from piglet.config.providers import LoginMethod, provider_auth_list
 from piglet.config.settings import SETTINGS_DEFAULTS, SettingsStore
 from piglet.config.trust import TrustStore, has_project_resources, trust_options
 from piglet.paths import CONFIG_DIR_NAME, session_dir_for_cwd
@@ -36,6 +38,7 @@ class ServerContext:
     manager: SessionManager
     hub: Hub
     auth: AuthStore
+    logins: Mapping[str, LoginMethod] = field(default_factory=dict)
 
     @property
     def agent_dir(self) -> Path:
@@ -479,30 +482,60 @@ class ConfigHandlers:
 
 
 class AuthHandlers:
-    """API key management (OAuth logins are added by :mod:`piglet.ai.oauth`)."""
+    """API keys and credential status (OAuth logins are added by :mod:`piglet.ai.oauth`)."""
 
-    def __init__(self, ctx: ServerContext) -> None:
-        """Bind to the server context."""
+    def __init__(
+        self,
+        ctx: ServerContext,
+        env: Mapping[str, str] | None = None,
+        clock: Callable[[], float] = time.time,
+    ) -> None:
+        """Bind to the server context.
+
+        Args:
+            ctx: The server context.
+            env: Environment variables; defaults to ``os.environ``.
+            clock: Returns the current time in seconds, for OAuth expiry.
+        """
         self.ctx = ctx
+        self.env = env
+        self.clock = clock
+
+    def status(self) -> dict[str, Any]:
+        """Return ``{providers, warnings}``: every listed provider's credential sources."""
+        warnings: list[str] = []
+        try:
+            doc = read_json(self.ctx.agent_dir / "models.json")
+        except ValueError:
+            doc = None
+            warnings.append("models.json isn't valid JSON, so its providers and keys are ignored.")
+        if isinstance(doc, dict) and "providers" in doc and not isinstance(doc["providers"], dict):
+            warnings.append("providers must be an object.")
+        resolved = apply_models_config(load_catalog(), doc)
+        warnings.extend(error.removeprefix("models.json: ") for error in resolved.errors)
+        providers = provider_auth_list(
+            resolved,
+            self.ctx.auth.read(),
+            os.environ if self.env is None else self.env,
+            self.ctx.logins,
+            int(self.clock() * 1000),
+        )
+        return {"providers": providers, "warnings": warnings}
 
     def handlers(self) -> dict[str, Handler]:
         """Return the command table."""
         ctx = self.ctx
 
-        async def status(_c: Any) -> list[dict[str, Any]]:  # noqa: ANN401
-            stored = ctx.auth.read()
-            try:
-                models_doc = read_json(ctx.agent_dir / "models.json") or {}
-            except ValueError:
-                models_doc = {}
-            configured_keys = {
-                p for p, spec in (models_doc.get("providers") or {}).items() if spec.get("apiKey")
-            }
-            providers = sorted(set(ENV_API_KEYS) | set(stored) | configured_keys)
-            return [_provider_status(p, stored.get(p), p in configured_keys) for p in providers]
+        async def status(_c: Any) -> dict[str, Any]:  # noqa: ANN401
+            return self.status()
 
         async def set_key(c: Any) -> None:  # noqa: ANN401
-            ctx.auth.set_api_key(c.provider, c.key)
+            provider, key = c.provider.strip(), c.key.strip()
+            if not provider:
+                raise ValueError("Choose a provider.")
+            if not key:
+                raise ValueError("Enter a key.")
+            ctx.auth.set_api_key(provider, key)
             ctx.reload_all()
 
         async def logout(c: Any) -> None:  # noqa: ANN401
@@ -510,25 +543,6 @@ class AuthHandlers:
             ctx.reload_all()
 
         return {"auth_status": status, "set_api_key": set_key, "logout": logout}
-
-
-def _provider_status(
-    provider: str, stored: dict[str, Any] | None, in_models: bool
-) -> dict[str, Any]:
-    source = None
-    if stored:
-        source = "auth.json"
-    elif in_models:
-        source = "models.json"
-    elif env_api_key(provider, os.environ):
-        source = "env"
-    return {
-        "provider": provider,
-        "configured": source is not None,
-        "source": source,
-        "type": (stored or {}).get("type"),
-        "envVars": list(ENV_API_KEYS.get(provider, ())),
-    }
 
 
 def build_handlers(

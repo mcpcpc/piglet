@@ -1,10 +1,18 @@
 // Settings: a GUI over settings.json (global), models.json, auth.json and the project file.
 
-import { type KeyboardEvent, type ReactNode, useCallback, useEffect, useState } from "react";
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { shortcutLabel } from "../lib/native";
 import type { ModelInfo } from "../protocol/types";
 import {
   activeView,
+  refreshProviders,
   refreshSettings,
   reportError,
   request,
@@ -12,6 +20,15 @@ import {
   ui,
   useApp,
 } from "../state/store";
+import {
+  type EscapeRef,
+  ModelsWarning,
+  ProviderList,
+  ProviderPage,
+  ProvidersLoading,
+  RefreshFailed,
+  TOUCH_TARGETS,
+} from "./Credentials";
 import { Button, inputClass, Modal } from "./Modal";
 
 type Settings = Record<string, unknown>;
@@ -23,14 +40,6 @@ interface SettingsData {
   agentDir: string;
   globalPath: string;
   projectPath: string | null;
-}
-
-interface ProviderStatus {
-  provider: string;
-  configured: boolean;
-  source: string | null;
-  type: string | null;
-  envVars: string[];
 }
 
 const TABS = [
@@ -345,86 +354,86 @@ function Models({ data, patch }: { data: SettingsData; patch: (v: Settings) => P
   );
 }
 
-function Providers() {
-  const [providers, setProviders] = useState<ProviderStatus[]>([]);
-  const [editing, setEditing] = useState<string | null>(null);
-  const [key, setKey] = useState("");
-  const load = useCallback(() => {
-    request<ProviderStatus[]>("auth_status", {}).then(setProviders).catch(reportError);
+function Providers({ escapeRef }: { escapeRef: EscapeRef }) {
+  const status = useApp((s) => s.providers);
+  const error = useApp((s) => s.providersError);
+  const [selected, setSelected] = useState("");
+  const [page, setPage] = useState<string | null>(null);
+  const pageEscape: EscapeRef = useRef(null);
+  const root = useRef<HTMLDivElement>(null);
+  const scrollTop = useRef(0);
+  const provider = page ? status?.providers.find((p) => p.id === page) : undefined;
+
+  useEffect(() => {
+    void refreshProviders();
   }, []);
-  useEffect(load, [load]);
-  const save = async (provider: string) => {
-    await request("set_api_key", { provider, key });
-    setEditing(null);
-    setKey("");
-    load();
+  // A provider that disappears (its last credential removed) returns to the list.
+  useEffect(() => {
+    if (page && status && !provider) setPage(null);
+  }, [page, status, provider]);
+
+  const scroller = () => root.current?.closest<HTMLElement>("[data-modal-body]");
+  const open = (id: string) => {
+    scrollTop.current = scroller()?.scrollTop ?? 0;
+    setSelected(id);
+    setPage(id);
+    requestAnimationFrame(() => {
+      const body = scroller();
+      if (body) body.scrollTop = 0;
+    });
   };
+  const back = () => {
+    setPage(null);
+    requestAnimationFrame(() => {
+      const body = scroller();
+      if (body) body.scrollTop = scrollTop.current;
+      const list = root.current;
+      (
+        list?.querySelector<HTMLElement>("[cmdk-input]") ??
+        list?.querySelector<HTMLElement>("[cmdk-root]")
+      )?.focus();
+    });
+  };
+
+  useEffect(() => {
+    escapeRef.current = () => {
+      if (!page) return false;
+      if (!pageEscape.current?.()) back();
+      return true;
+    };
+    return () => {
+      escapeRef.current = null;
+    };
+  });
+
+  if (!status) return <ProvidersLoading error={error} />;
   return (
-    <div className="space-y-1">
-      <p className="mb-2 text-[12px] text-fg-muted">
-        Keys are stored in auth.json (mode 0600). Values may be literal keys, <code>$ENV_VAR</code>{" "}
-        references or <code>!command</code> to read from a password manager.{" "}
-        <button type="button" className="text-accent underline" onClick={() => ui.open("login")}>
-          Sign in with a subscription…
-        </button>
-      </p>
-      {providers.map((p) => (
-        <div key={p.provider} className="rounded-md border border-line px-3 py-2">
-          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 text-[13px]">
-            <div className="min-w-0">
-              <div className="font-medium [overflow-wrap:anywhere]">{p.provider}</div>
-              {p.configured ? (
-                <div className="text-[11px] text-add-fg">
-                  {p.type === "oauth" ? "signed in" : "configured"} · {p.source}
-                </div>
-              ) : p.envVars.length ? (
-                <div className="text-[11px] text-fg-faint [overflow-wrap:anywhere]">
-                  or set {p.envVars.join(" / ")}
-                </div>
-              ) : null}
-            </div>
-            <span className="flex gap-1">
-              <Button
-                variant="ghost"
-                onClick={() => setEditing(editing === p.provider ? null : p.provider)}
-              >
-                {p.source === "auth.json" ? "Replace key" : "Add key"}
-              </Button>
-              {p.source === "auth.json" ? (
-                <Button
-                  variant="danger"
-                  onClick={() =>
-                    request("logout", { provider: p.provider }).then(load).catch(reportError)
-                  }
-                >
-                  Remove
-                </Button>
-              ) : null}
-            </span>
-          </div>
-          {editing === p.provider ? (
-            <form
-              className="mt-2 flex gap-2"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void save(p.provider).catch(reportError);
-              }}
-            >
-              <input
-                className={inputClass}
-                type="password"
-                autoComplete="off"
-                placeholder="sk-…, $ENV or !command"
-                value={key}
-                onChange={(e) => setKey(e.target.value)}
-              />
-              <Button type="submit" variant="primary" disabled={!key}>
-                Save
-              </Button>
-            </form>
-          ) : null}
-        </div>
-      ))}
+    <div ref={root} className={TOUCH_TARGETS}>
+      {provider ? (
+        <ProviderPage
+          key={provider.id}
+          p={provider}
+          context="settings"
+          backLabel="Back to providers"
+          onBack={back}
+          escapeRef={pageEscape}
+        />
+      ) : null}
+      <div hidden={Boolean(provider)}>
+        <p className="mb-3 text-[13px] text-fg-muted">
+          Sign in or add API keys for model providers. Credentials saved here take priority over
+          models.json and environment variables.
+        </p>
+        <RefreshFailed error={error} />
+        <ModelsWarning warnings={status.warnings} />
+        <ProviderList
+          providers={status.providers}
+          selected={selected}
+          onSelected={setSelected}
+          onOpen={(p) => open(p.id)}
+          grouped
+        />
+      </div>
     </div>
   );
 }
@@ -643,11 +652,20 @@ export function SettingsDialog() {
   const open = useApp((s) => s.dialog === "settings");
   const tab = useApp((s) => s.settingsTab);
   const { data, patch, load } = useSettings();
+  const escapeRef: EscapeRef = useRef(null);
   useEffect(() => {
     if (open) load();
   }, [open, load]);
   return (
-    <Modal open={open} onClose={ui.close} title="Settings" width="max-w-3xl">
+    <Modal
+      open={open}
+      onClose={ui.close}
+      title="Settings"
+      width="max-w-3xl"
+      onEscapeKeyDown={(event) => {
+        if (escapeRef.current?.()) event.preventDefault();
+      }}
+    >
       <div className="flex gap-4 max-sm:flex-col">
         <div
           role="tablist"
@@ -683,7 +701,7 @@ export function SettingsDialog() {
           ) : tab === "models" ? (
             <Models data={data} patch={patch} />
           ) : tab === "providers" ? (
-            <Providers />
+            <Providers escapeRef={escapeRef} />
           ) : tab === "tools" ? (
             <Tools data={data} patch={patch} />
           ) : tab === "compaction" ? (

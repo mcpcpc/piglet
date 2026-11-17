@@ -16,7 +16,7 @@ import {
 import { Drawer } from "./components/Drawer";
 import { ExtensionDialogs, ExtensionSurfaces } from "./components/ExtensionDialogs";
 import { Icon } from "./components/Icon";
-import { LoginDialog } from "./components/LoginDialog";
+import { LoginDialog, LogoutDialog } from "./components/LoginDialog";
 import { Logo } from "./components/Logo";
 import { OffCanvas } from "./components/OffCanvas";
 import { SettingsDialog } from "./components/SettingsDialog";
@@ -248,6 +248,7 @@ export function App() {
       <TrustDialog />
       <ModelsDialog />
       <LoginDialog />
+      <LogoutDialog />
       <ExtensionDialogs />
       <TextPromptDialog />
       <Toasts />

@@ -43,7 +43,7 @@ class SidecarTest(unittest.TestCase):
                 hello, providers = asyncio.run(handshake())
                 self.assertTrue(hello["success"])
                 self.assertEqual(hello["data"]["agentDir"], os.path.realpath(agent_dir))
-                self.assertEqual(providers["data"], [{"id": "openrouter", "name": "OpenRouter"}])
+                self.assertEqual([p["id"] for p in providers["data"]], ["openrouter", "openai"])
                 process.stdin.close()
                 self.assertEqual(process.wait(timeout=15), 0)
             finally:

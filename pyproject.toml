@@ -11,10 +11,12 @@ license = "BSD-3-Clause"
 license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 requires-python = ">=3.12"
 dependencies = [
+    "cryptography==50.0.2",
     "httpx==0.28.1",
     "pathspec==1.1.1",
     "pillow==13.0.0",
     "pydantic==2.14.3",
+    "pyjwt==2.15.1",
     "pyyaml==6.0.3",
     "starlette==1.10.0",
     "uvicorn==0.54.0",

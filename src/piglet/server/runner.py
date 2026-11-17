@@ -13,7 +13,10 @@ import uvicorn
 from piglet.ai.client import HttpModelClient
 from piglet.ai.oauth.handlers import oauth_handlers
 from piglet.ai.oauth.manager import OAuthManager
+from piglet.ai.oauth.providers import default_providers, oauth_refresher
+from piglet.ai.oauth.registrations import ChatGPTRegistrations
 from piglet.config.auth import AuthStore, CredentialResolver
+from piglet.config.settings import SettingsStore
 from piglet.extensions.handlers import extension_handlers
 from piglet.extensions.host import ExtensionPlugin
 from piglet.paths import agent_dir
@@ -32,10 +35,11 @@ def build_context() -> tuple[ServerContext, dict[str, Handler]]:
     directory = agent_dir()
     directory.mkdir(parents=True, exist_ok=True)
     auth = AuthStore(directory)
-    credentials = CredentialResolver(auth)
+    logins = default_providers(SettingsStore(directory).device_id, ChatGPTRegistrations(directory))
+    credentials = CredentialResolver(auth, refresher=oauth_refresher(logins))
     services = Services(directory, HttpModelClient(), credentials)
-    ctx = ServerContext(SessionManager(services, [ExtensionPlugin()]), Hub(), auth)
-    extra = {**oauth_handlers(ctx, OAuthManager(auth)), **extension_handlers(ctx)}
+    ctx = ServerContext(SessionManager(services, [ExtensionPlugin()]), Hub(), auth, logins)
+    extra = {**oauth_handlers(ctx, OAuthManager(auth, logins)), **extension_handlers(ctx)}
     return ctx, extra
 
 

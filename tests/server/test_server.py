@@ -13,7 +13,7 @@ from piglet.runtime.manager import SessionManager
 from piglet.runtime.session import Services
 from piglet.server import protocol
 from piglet.server.app import create_app
-from piglet.server.handlers import ServerContext, list_dir, list_files
+from piglet.server.handlers import AuthHandlers, ServerContext, list_dir, list_files
 from piglet.server.hub import Hub
 from piglet.server.security import allowed_hosts, allowed_origins
 from tests.fakes import MODEL, ScriptedClient, text_reply, tool_reply
@@ -259,14 +259,20 @@ class FlowTest(ServerCase):
                     "success"
                 ]
             )
-            self.request(socket, {"type": "set_api_key", "provider": "openai", "key": "sk-1"})
+            self.request(socket, {"type": "set_api_key", "provider": "openai", "key": " sk-1 "})
+            self.assertEqual(AuthStore(self.agent).get("openai")["key"], "sk-1")
+            blank = self.request(socket, {"type": "set_api_key", "provider": "groq", "key": "  "})
+            self.assertEqual(blank["error"], "Enter a key.")
             status = self.request(socket, {"type": "auth_status"})["data"]
-            openai = next(p for p in status if p["provider"] == "openai")
-            self.assertEqual(openai["source"], "auth.json")
-            fake = next(p for p in status if p["provider"] == "fake")
-            self.assertEqual(fake["source"], "models.json")
+            self.assertEqual(status["warnings"], [])
+            providers = {p["id"]: p for p in status["providers"]}
+            self.assertEqual(providers["openai"]["sources"][0]["kind"], "stored")
+            self.assertEqual(providers["fake"]["sources"][0]["kind"], "models.json")
             self.request(socket, {"type": "logout", "provider": "openai"})
             self.assertIsNone(AuthStore(self.agent).get("openai"))
+            self.assertTrue(
+                self.request(socket, {"type": "logout", "provider": "openai"})["success"]
+            )
             options = self.request(socket, {"type": "trust_options", "cwd": str(self.cwd)})["data"]
             self.assertEqual(options[0]["label"], "Trust")
             trusted = self.request(
@@ -302,3 +308,26 @@ class HelpersTest(unittest.TestCase):
     def test_launcher(self):
         self.assertEqual(gui_url(5, "t"), "http://127.0.0.1:5/#token=t")
         self.assertTrue(parse_args(["--no-browser"]).no_browser)
+
+
+class AuthStatusTest(ServerCase):
+    def status(self, env=None):
+        handlers = AuthHandlers(self.ctx, env=env or {}, clock=lambda: 1_800_000_000)
+        return handlers.status()
+
+    def test_malformed_models_json_keeps_the_list(self):
+        (self.agent / "models.json").write_text(json.dumps({"providers": {"groq": "x"}}))
+        status = self.status()
+        self.assertEqual(status["warnings"], ["provider 'groq' must be an object"])
+        self.assertIn("openrouter", [p["id"] for p in status["providers"]])
+        (self.agent / "models.json").write_text("{bad")
+        self.assertIn("isn't valid JSON", self.status()["warnings"][0])
+        (self.agent / "models.json").write_text(json.dumps({"providers": []}))
+        self.assertEqual(self.status()["warnings"], ["providers must be an object."])
+
+    def test_env_is_injected(self):
+        status = self.status(env={"GROQ_API_KEY": "fake"})
+        groq = next(p for p in status["providers"] if p["id"] == "groq")
+        self.assertEqual(
+            groq["sources"], [{"kind": "env", "envVar": "GROQ_API_KEY", "problem": None}]
+        )

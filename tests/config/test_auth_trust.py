@@ -4,6 +4,7 @@ import sys
 import tempfile
 import time
 import unittest
+import unittest.mock
 from pathlib import Path
 
 from piglet.config.auth import AuthStore, CredentialResolver, env_api_key
@@ -59,6 +60,15 @@ class AuthTest(unittest.TestCase):
         resolver = CredentialResolver(self.store, env={}, refresher=refresher)
         self.assertEqual(resolver.resolve("x"), "new")
         self.assertEqual(self.store.get("x")["access"], "new")
+
+    def test_unchanged_refresh_is_not_written(self):
+        expires = int(time.time() * 1000) + 1000
+        credential = {"type": "oauth", "access": "same", "refresh": "", "expires": expires}
+        self.store.set("x", credential)
+        resolver = CredentialResolver(self.store, env={}, refresher=lambda _p, c: c)
+        with unittest.mock.patch.object(self.store, "set") as write:
+            self.assertEqual(resolver.resolve("x"), "same")
+        write.assert_not_called()
 
 
 class TrustTest(unittest.TestCase):

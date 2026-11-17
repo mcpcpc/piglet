@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { type ReactNode, type RefObject, useState } from "react";
+import { type ButtonHTMLAttributes, type ReactNode, type RefObject, useState } from "react";
 import { Icon } from "./Icon";
 
 export function Modal({
@@ -10,6 +10,7 @@ export function Modal({
   width = "max-w-lg",
   description,
   initialFocus,
+  onEscapeKeyDown,
 }: {
   open: boolean;
   onClose: () => void;
@@ -19,12 +20,16 @@ export function Modal({
   description?: string;
   /** Element to focus on open instead of the first focusable one (the close button). */
   initialFocus?: RefObject<HTMLElement | null>;
+  /** Runs before Esc closes the dialog; `event.preventDefault()` keeps it open. */
+  onEscapeKeyDown?: (event: KeyboardEvent) => void;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-x-0 bottom-0 top-(--titlebar-bottom) z-40 bg-black/30" />
         <Dialog.Content
+          onEscapeKeyDown={onEscapeKeyDown}
+          {...(description ? {} : { "aria-describedby": undefined })}
           onOpenAutoFocus={(event) => {
             if (!initialFocus?.current) return;
             event.preventDefault();
@@ -35,7 +40,7 @@ export function Modal({
           <div className="flex items-center border-b border-line px-4 py-3">
             <Dialog.Title className="text-[14px] font-semibold">{title}</Dialog.Title>
             <Dialog.Close
-              className="ml-auto rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2.5"
+              className="-my-1 ml-auto flex items-center justify-center rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:-my-2.5 pointer-coarse:size-11"
               aria-label="Close"
             >
               <Icon name="close" size={14} />
@@ -45,44 +50,43 @@ export function Modal({
             <Dialog.Description className="px-4 pt-3 text-[13px] text-fg-muted">
               {description}
             </Dialog.Description>
-          ) : (
-            <Dialog.Description className="sr-only">{title}</Dialog.Description>
-          )}
-          <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
+          ) : null}
+          <div data-modal-body className="min-h-0 flex-1 overflow-y-auto p-4">
+            {children}
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
   );
 }
 
-export function Button({
-  children,
-  onClick,
-  variant = "default",
-  disabled,
-  type = "button",
-  className = "",
-}: {
-  children: ReactNode;
-  onClick?: () => void;
-  variant?: "default" | "primary" | "danger" | "ghost";
-  disabled?: boolean;
-  type?: "button" | "submit";
-  className?: string;
-}) {
+type ButtonVariant = "default" | "primary" | "danger" | "ghost";
+
+/** Button styling, also used for links that look like buttons. */
+export function buttonClass(variant: ButtonVariant = "default", className = ""): string {
   const styles = {
     default: "border border-line bg-bg hover:bg-hover",
     primary: "bg-accent text-accent-fg hover:opacity-90",
     danger: "border border-danger/40 text-danger hover:bg-del-bg",
     ghost: "hover:bg-hover",
   }[variant];
+  return `whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] disabled:opacity-50 pointer-coarse:py-2.5 ${styles} ${className}`;
+}
+
+export function Button({
+  children,
+  variant = "default",
+  type = "button",
+  className = "",
+  ...rest
+}: {
+  children: ReactNode;
+  variant?: ButtonVariant;
+  type?: "button" | "submit";
+  className?: string;
+} & Omit<ButtonHTMLAttributes<HTMLButtonElement>, "type" | "className" | "children">) {
   return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      className={`whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] disabled:opacity-50 pointer-coarse:py-2.5 ${styles} ${className}`}
-    >
+    <button type={type} {...rest} className={buttonClass(variant, className)}>
       {children}
     </button>
   );

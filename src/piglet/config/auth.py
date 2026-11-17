@@ -3,7 +3,7 @@
 ``auth.json`` maps a provider id to one credential::
 
     {"anthropic": {"type": "api_key", "key": "!security find-generic-password -ws anthropic"},
-     "openai-codex": {"type": "oauth", "access": "...", "refresh": "...", "expires": 1731000000000}}
+     "openai": {"type": "oauth", "access": "...", "refresh": "...", "expires": 1731000000000}}
 
 Resolution order for a provider: the stored ``auth.json`` credential, then the ``apiKey`` from
 ``models.json``, then the provider's environment variables. When a credential is stored,
@@ -49,6 +49,25 @@ ENV_API_KEYS: dict[str, tuple[str, ...]] = {
     "opencode": ("OPENCODE_API_KEY",),
     "kimi-coding": ("KIMI_API_KEY",),
     "meta": ("META_API_KEY",),
+    "ant-ling": ("ANT_LING_API_KEY",),
+    "minimax-cn": ("MINIMAX_CN_API_KEY",),
+    "moonshotai-cn": ("MOONSHOT_API_KEY",),
+    "opencode-go": ("OPENCODE_API_KEY",),
+    "qwen-token-plan": ("QWEN_TOKEN_PLAN_TEAM_API_KEY", "QWEN_TOKEN_PLAN_API_KEY"),
+    "qwen-token-plan-cn": ("QWEN_TOKEN_PLAN_TEAM_CN_API_KEY", "QWEN_TOKEN_PLAN_CN_API_KEY"),
+    "qwen-token-plan-individual": (
+        "QWEN_TOKEN_PLAN_INDIVIDUAL_API_KEY",
+        "QWEN_TOKEN_PLAN_API_KEY",
+    ),
+    "qwen-token-plan-individual-cn": (
+        "QWEN_TOKEN_PLAN_INDIVIDUAL_CN_API_KEY",
+        "QWEN_TOKEN_PLAN_CN_API_KEY",
+    ),
+    "xiaomi": ("XIAOMI_API_KEY",),
+    "xiaomi-token-plan-ams": ("XIAOMI_TOKEN_PLAN_AMS_API_KEY",),
+    "xiaomi-token-plan-cn": ("XIAOMI_TOKEN_PLAN_CN_API_KEY",),
+    "xiaomi-token-plan-sgp": ("XIAOMI_TOKEN_PLAN_SGP_API_KEY",),
+    "zai-coding-cn": ("ZAI_CODING_CN_API_KEY",),
 }
 
 Credential = dict[str, Any]
@@ -168,7 +187,9 @@ class CredentialResolver:
         now_ms = int(time.time() * 1000)
         expiring = isinstance(expires, int | float) and expires - now_ms < OAUTH_REFRESH_MARGIN_MS
         if expiring and self._refresher is not None:
-            credential = self._refresher(provider, credential)
-            self._store.set(provider, credential)
+            refreshed = self._refresher(provider, credential)
+            if refreshed != credential:
+                self._store.set(provider, refreshed)
+            credential = refreshed
         access = credential.get("access")
         return access if isinstance(access, str) else None

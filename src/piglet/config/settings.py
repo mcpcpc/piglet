@@ -13,6 +13,7 @@ Rules ported from Pi's ``settings-manager.ts``:
 from __future__ import annotations
 
 import copy
+import uuid
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
@@ -270,6 +271,25 @@ class SettingsStore:
             return doc
 
         return update_json(self.global_path, apply)
+
+    def device_id(self) -> str:
+        """Return this installation's stable UUID, creating it on first use.
+
+        Ported from Pi's ``getOrCreateDeviceId``. Only the global file is used, so a committed
+        project settings file cannot give every clone the same ID.
+        """
+        current = self.read_global().get("deviceId")
+        if isinstance(current, str) and current:
+            return current
+
+        def apply(doc: object) -> dict[str, Any]:
+            migrated = migrate_settings(doc if isinstance(doc, dict) else {})
+            existing = migrated.get("deviceId")
+            if not (isinstance(existing, str) and existing):
+                migrated["deviceId"] = str(uuid.uuid4())
+            return migrated
+
+        return update_json(self.global_path, apply)["deviceId"]
 
     def replace_project(self, doc: Mapping[str, Any]) -> None:
         """Replace the whole project settings file (the GUI edits it as raw JSON).

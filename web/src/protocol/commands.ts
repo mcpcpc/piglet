@@ -66,7 +66,7 @@ export interface CommandMap {
   auth_status: Record<string, never>;
   set_api_key: { provider: string; key: string };
   logout: { provider: string };
-  login_start: { provider: string };
+  login_start: { provider: string; account?: string | null };
   login_respond: { loginId: string; value: string };
   login_cancel: { loginId: string };
   login_providers: Record<string, never>;

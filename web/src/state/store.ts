@@ -2,15 +2,19 @@
 
 import { create } from "zustand";
 import { matches, OVERLAY_SIDEBAR } from "../lib/media";
-import { openExternal } from "../lib/native";
+import { isElectron, openExternal } from "../lib/native";
+import { reasonText } from "../lib/providers";
 import { type ConnectionStatus, type HelloInfo, PigletClient } from "../protocol/client";
 import type { CommandMap, CommandType } from "../protocol/commands";
 import type {
   AgentEvent,
+  AuthStatus,
   CommandInfo,
   EventFrame,
   LoginEvent,
   ProjectInfo,
+  ProviderAuth,
+  SavedAccount,
   SessionEntry,
   SessionHeader,
   SessionInfo,
@@ -33,7 +37,15 @@ export interface Toast {
 }
 
 export type DrawerTab = "changes" | "bash";
-export type Dialog = null | "settings" | "hotkeys" | "session-info" | "folder" | "login" | "models";
+export type Dialog =
+  | null
+  | "settings"
+  | "hotkeys"
+  | "session-info"
+  | "folder"
+  | "login"
+  | "logout"
+  | "models";
 
 export interface ExtensionRequest {
   sessionId: string;
@@ -68,6 +80,11 @@ interface AppState {
   extensionStatus: Record<string, Record<string, string>>;
   extensionWidgets: Record<string, Record<string, string[]>>;
   login: LoginState | null;
+  /** Credential status of every provider (`auth_status`); null until first loaded. */
+  providers: AuthStatus | null;
+  providersError: string | null;
+  /** Provider named by `/login <text>` or `/logout <text>`, for the dialog to open on. */
+  credentialTarget: string | null;
   showThinking: boolean;
 }
 
@@ -82,13 +99,31 @@ export interface TextPrompt {
   resolve: (value: string | null) => void;
 }
 
+/** The sign-in in progress. Only one runs at a time; the server cancels any earlier one. */
 export interface LoginState {
-  loginId: string;
+  /** Null until `login_start` answers. */
+  loginId: string | null;
+  /** Which start this is, so an answer to an earlier, cancelled start is not adopted. */
+  attempt: number;
   provider: string;
+  name: string;
+  account: string;
+  status: "starting" | "waiting" | "success" | "error" | "cancelled";
   url?: string;
+  /** Progress text while waiting, or the failure reason. */
   message?: string;
-  status: "waiting" | "success" | "error" | "cancelled";
+  /** A pasted address was submitted and is being checked. */
+  checking?: boolean;
+  /** Why the last pasted address was rejected; the sign-in keeps waiting. */
+  inputError?: string;
+  /** The saved account this sign-in reuses, once the server says. */
+  savedAccount?: SavedAccount | null;
+  /** Why the sign-in failed, when the server gives a code (e.g. "account_mismatch"). */
+  code?: string;
 }
+
+/** `startLogin` account that registers another account instead of reusing a saved one. */
+export const NEW_ACCOUNT = "new";
 
 const initial: AppState = {
   client: null,
@@ -116,6 +151,9 @@ const initial: AppState = {
   extensionStatus: {},
   extensionWidgets: {},
   login: null,
+  providers: null,
+  providersError: null,
+  credentialTarget: null,
   showThinking: true,
 };
 
@@ -124,6 +162,7 @@ export const useApp = create<AppState>(() => initial);
 const set = useApp.setState;
 const get = useApp.getState;
 let toastCounter = 0;
+let loginAttempts = 0;
 let promptCounter = 0;
 const syncChains = new Map<string, Promise<void>>();
 
@@ -188,20 +227,43 @@ async function onConnected(): Promise<void> {
   }
 }
 
-function onLoginEvent(event: LoginEvent): void {
+/** Apply a `login_event` from the server to the sign-in in progress. */
+export function onLoginEvent(event: LoginEvent): void {
   const login = get().login;
   if (!login || login.loginId !== event.loginId) return;
-  if (event.kind === "auth_url") {
-    set({ login: { ...login, url: event.url, message: event.message } });
-    if (event.url) void openExternal(event.url);
-  } else if (event.kind === "progress") {
-    set({ login: { ...login, message: event.message } });
-  } else {
-    set({ login: { ...login, status: event.kind, message: event.message } });
-    if (event.kind === "success") {
-      toast(`Signed in to ${login.provider}`);
+  switch (event.kind) {
+    case "auth_url":
+      set({ login: { ...login, url: event.url, savedAccount: event.account ?? null } });
+      // A browser blocks a window opened outside a click, so the page shows a link instead.
+      if (event.url && isElectron()) void openExternal(event.url);
+      break;
+    case "progress":
+      set({ login: { ...login, message: event.message, checking: true, inputError: undefined } });
+      break;
+    case "input_error":
+      set({ login: { ...login, checking: false, inputError: event.message } });
+      break;
+    case "success":
+      set({ login: { ...login, status: "success", checking: false } });
+      toast(`Signed in with ${login.account}`);
+      void refreshProviders();
       for (const view of Object.values(get().views)) void syncSession(view.id, ["state"]);
-    }
+      break;
+    case "error":
+      set({
+        login: {
+          ...login,
+          status: "error",
+          checking: false,
+          message: event.message,
+          code: event.code,
+        },
+      });
+      break;
+    case "cancelled":
+      // Our own cancels clear `login` first, so this one came from elsewhere (another window).
+      if (login.status === "waiting") set({ login: { ...login, status: "cancelled" } });
+      break;
   }
 }
 
@@ -384,15 +446,96 @@ export function toggleProject(cwd: string): void {
   if (open) void refreshSessions(cwd).catch(reportError);
 }
 
-export async function startLogin(provider: string): Promise<void> {
-  const { loginId } = await request<{ loginId: string }>("login_start", { provider });
-  set({ login: { loginId, provider, status: "waiting" } });
+// ---------------------------------------------------------------- credentials
+
+/** Reload every provider's credential status. */
+export async function refreshProviders(): Promise<void> {
+  try {
+    const status = await request<AuthStatus>("auth_status", {});
+    set({ providers: status, providersError: null });
+  } catch (error) {
+    set({ providersError: reasonText(error) });
+  }
 }
 
+/** Open `/login` or `/logout`, optionally on the provider `target` names. */
+export function openCredentials(dialog: "login" | "logout", target = ""): void {
+  set({ dialog, credentialTarget: target.trim() || null });
+}
+
+/**
+ * Start signing in to `p`. A second start while one is starting is ignored. `savedAccount` picks a
+ * saved account by id, or NEW_ACCOUNT; by default the most recently used one is reused.
+ */
+export async function startLogin(p: ProviderAuth, savedAccount?: string): Promise<void> {
+  const current = get().login;
+  if (current?.status === "starting") return;
+  if (current?.status === "waiting" && current.loginId)
+    void request("login_cancel", { loginId: current.loginId }).catch(() => {});
+  const account = p.login?.account ?? p.name;
+  loginAttempts += 1;
+  const attempt = loginAttempts;
+  set({
+    login: { loginId: null, attempt, provider: p.id, name: p.name, account, status: "starting" },
+  });
+  try {
+    const { loginId } = await request<{ loginId: string }>("login_start", {
+      provider: p.id,
+      account: savedAccount ?? null,
+    });
+    const now = get().login;
+    if (now?.attempt !== attempt || now.status !== "starting") {
+      // Cancelled while starting.
+      void request("login_cancel", { loginId }).catch(() => {});
+      return;
+    }
+    set({ login: { ...now, loginId, status: "waiting" } });
+  } catch (error) {
+    const now = get().login;
+    if (now?.attempt === attempt && now.status === "starting")
+      set({ login: { ...now, status: "error", message: reasonText(error) } });
+  }
+}
+
+/** Stop the sign-in in progress (if any) and forget it. */
 export async function cancelLogin(): Promise<void> {
   const login = get().login;
   set({ login: null });
-  if (login?.status === "waiting") await request("login_cancel", { loginId: login.loginId });
+  if (login?.status === "waiting" && login.loginId)
+    await request("login_cancel", { loginId: login.loginId });
+}
+
+/** Send the address the user pasted to the sign-in in progress. */
+export async function respondLogin(value: string): Promise<void> {
+  const login = get().login;
+  if (!login?.loginId || login.status !== "waiting") return;
+  set({ login: { ...login, checking: true, inputError: undefined } });
+  try {
+    await request("login_respond", { loginId: login.loginId, value: value.trim() });
+  } catch (error) {
+    const now = get().login;
+    if (now?.loginId === login.loginId)
+      set({ login: { ...now, checking: false, inputError: reasonText(error) } });
+  }
+}
+
+/** Save an API key for `p`; rejects with the server's reason. */
+export async function saveApiKey(p: ProviderAuth, key: string): Promise<void> {
+  await request("set_api_key", { provider: p.id, key: key.trim() });
+  await refreshProviders();
+  toast(`Saved API key for ${p.name}`);
+}
+
+/** Remove `p`'s saved credential and say what piglet uses now; rejects with the reason. */
+export async function removeCredential(p: ProviderAuth): Promise<void> {
+  const oauth = p.sources[0]?.kind === "stored" && p.sources[0].type === "oauth";
+  await request("logout", { provider: p.id });
+  await refreshProviders();
+  const now = get().providers?.providers.find((row) => row.id === p.id)?.sources[0];
+  const using =
+    now?.kind === "env" ? now.envVar : now?.kind === "models.json" ? "models.json" : null;
+  const done = oauth ? `Signed out of ${p.name}` : `Removed API key for ${p.name}`;
+  toast(using ? `${done}. Now using ${using}.` : done);
 }
 
 /**
