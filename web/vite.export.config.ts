@@ -7,6 +7,7 @@ import { defineConfig } from "vite";
 // standalone page. It shares the transcript components but not the live client.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  publicDir: false, // the favicons in web/public belong to the app, not the export bundle
   build: {
     outDir: resolve(import.meta.dirname, "../src/piglet/server/static/export"),
     emptyOutDir: true,
