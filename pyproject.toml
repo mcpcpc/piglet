@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "piglet"
-version = "0.3.0"
+version = "0.4.0"
 description = "A minimalist GUI coding-agent harness that re-implements the Pi coding agent."
 readme = "README.md"
 license = "BSD-3-Clause"
