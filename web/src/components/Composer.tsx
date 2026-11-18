@@ -237,13 +237,13 @@ export function Composer({ view }: { view: SessionView }) {
     <div className="mx-auto w-full max-w-3xl px-4 pb-3">
       <QueueBar view={view} />
       <div
-        className="relative rounded-lg border border-line bg-bg shadow-sm has-[textarea:focus]:border-accent has-[textarea:focus]:ring-2 has-[textarea:focus]:ring-accent/25"
+        className="relative rounded-lg border border-line bg-bg shadow-sm has-[textarea:focus]:border-fg-faint"
         onDragOver={(e) => e.preventDefault()}
         onDrop={(e) => void onDrop(e)}
       >
         {token && items.length ? (
           <div
-            className="absolute bottom-full left-0 z-20 mb-1 max-h-72 w-full overflow-y-auto rounded-lg border border-line bg-bg p-1 shadow-xl"
+            className="absolute bottom-full left-0 z-20 mb-1 max-h-72 w-full overflow-y-auto rounded-lg border border-line bg-float p-1 shadow-float"
             role="listbox"
           >
             {items.map((item, index) => (
@@ -256,7 +256,7 @@ export function Composer({ view }: { view: SessionView }) {
                   e.preventDefault();
                   complete(item);
                 }}
-                className={`flex w-full items-baseline gap-3 rounded px-2 py-1 text-left text-[13px] pointer-coarse:py-2 ${index === selected ? "bg-hover" : ""}`}
+                className={`flex w-full items-baseline gap-3 rounded px-2 py-1 text-left text-[13px] pointer-coarse:min-h-11 pointer-coarse:items-center ${index === selected ? "bg-hover" : ""}`}
               >
                 <span className="shrink-0 font-mono">{item.label}</span>
                 <span className="truncate text-[12px] text-fg-faint">{item.detail}</span>
@@ -305,7 +305,7 @@ export function Composer({ view }: { view: SessionView }) {
           <button
             type="button"
             onClick={() => fileInput.current?.click()}
-            className="rounded-md p-1 text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:p-2.5"
+            className="rounded-md p-1 text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:p-3.5"
             aria-label="Attach images"
             title="Attach images"
           >
@@ -335,7 +335,7 @@ export function Composer({ view }: { view: SessionView }) {
               <button
                 type="button"
                 onClick={() => void submit("followUp")}
-                className="rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:py-2"
+                className="rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:min-h-11"
                 title="Queue a follow-up for when the agent finishes (Alt+Enter)"
               >
                 Queue
@@ -345,7 +345,7 @@ export function Composer({ view }: { view: SessionView }) {
               <button
                 type="button"
                 onClick={() => void submit("auto")}
-                className="rounded-md bg-accent p-1.5 text-accent-fg hover:opacity-90 pointer-coarse:p-2.5"
+                className="rounded-md bg-accent p-1.5 text-accent-fg hover:opacity-90 pointer-coarse:p-3.5"
                 aria-label="Steer (Enter)"
                 title="Steer the agent now (Enter)"
               >
@@ -356,7 +356,7 @@ export function Composer({ view }: { view: SessionView }) {
               <button
                 type="button"
                 onClick={() => abort().catch(reportError)}
-                className="rounded-md bg-fg p-1.5 text-bg hover:opacity-80 pointer-coarse:p-2.5"
+                className="rounded-md bg-fg p-1.5 text-bg hover:opacity-80 pointer-coarse:p-3.5"
                 aria-label="Stop (Esc)"
                 title="Stop (Esc)"
               >
@@ -367,7 +367,7 @@ export function Composer({ view }: { view: SessionView }) {
                 type="button"
                 onClick={() => void submit("auto")}
                 disabled={!canSend}
-                className="rounded-md bg-accent p-1.5 text-accent-fg hover:opacity-90 disabled:opacity-40 pointer-coarse:p-2.5"
+                className="rounded-md bg-accent p-1.5 text-accent-fg hover:opacity-90 disabled:bg-muted disabled:text-fg-faint disabled:hover:opacity-100 pointer-coarse:p-3.5"
                 aria-label="Send (Enter)"
                 title="Send (Enter)"
               >

@@ -143,3 +143,27 @@ describe("workingLabel", () => {
     cleanup();
   });
 });
+
+describe("user shell commands", () => {
+  afterEach(cleanup);
+
+  it("keep the latest command's output open after it finishes", () => {
+    const ran: SessionEntry = {
+      type: "message",
+      id: "b1",
+      parentId: "u1",
+      timestamp: "2",
+      message: {
+        role: "bashExecution",
+        command: "git status",
+        output: "nothing to commit",
+        exitCode: 0,
+        cancelled: false,
+        truncated: false,
+        timestamp: 1,
+      },
+    };
+    render(<Transcript entries={[...entries, ran]} leafId="b1" />);
+    expect(screen.getByText("nothing to commit")).toBeTruthy();
+  });
+});

@@ -38,7 +38,7 @@ function CopyButton({ text }: { text: string }) {
       type="button"
       onClick={() => void copy()}
       aria-label={ui.label}
-      className={`ml-auto flex h-6 shrink-0 items-center gap-1 rounded px-1.5 hover:bg-hover focus-visible:-outline-offset-2 pointer-coarse:h-8 ${ui.tone}`}
+      className={`ml-auto flex h-6 shrink-0 items-center gap-1 rounded px-1.5 hover:bg-hover focus-visible:-outline-offset-2 pointer-coarse:-my-1.5 pointer-coarse:h-11 ${ui.tone}`}
     >
       <Icon name={ui.icon} size={12} />
       {ui.text}

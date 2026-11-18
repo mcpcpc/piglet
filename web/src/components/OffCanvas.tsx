@@ -30,7 +30,7 @@ export function OffCanvas({
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-x-0 bottom-0 top-(--titlebar-bottom) z-40 bg-black/30 data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out" />
+        <Dialog.Overlay className="fixed inset-x-0 bottom-0 top-(--titlebar-bottom) z-40 bg-scrim data-[state=open]:animate-fade-in data-[state=closed]:animate-fade-out" />
         <Dialog.Content
           aria-describedby={undefined}
           className={`fixed bottom-0 top-(--titlebar-bottom) z-40 flex max-w-full outline-none ${width} ${SIDES[side]}`}

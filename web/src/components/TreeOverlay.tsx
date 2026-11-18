@@ -183,7 +183,7 @@ export function TreeOverlay({ view }: { view: SessionView }) {
                 setFilter(name);
                 list.current?.focus();
               }}
-              className={`rounded-md px-2 py-0.5 text-[12px] pointer-coarse:py-2 ${filter === name ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
+              className={`rounded-md px-2 py-0.5 text-[12px] pointer-coarse:min-h-11 ${filter === name ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
             >
               {name}
             </button>
@@ -198,7 +198,7 @@ export function TreeOverlay({ view }: { view: SessionView }) {
           aria-label="Session entries"
           tabIndex={0}
           onKeyDown={onKeyDown}
-          className="max-h-[52vh] overflow-y-auto rounded-md border border-line font-mono text-[12px] outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-accent/25"
+          className="max-h-[52vh] overflow-y-auto rounded-md border border-line font-mono text-[12px] outline-none focus-visible:border-fg-faint"
         >
           {rows.map((row) => {
             const { kind, text } = describe(row.entry);
@@ -215,7 +215,15 @@ export function TreeOverlay({ view }: { view: SessionView }) {
                 className={`flex cursor-pointer items-center gap-2 px-2 py-1 [--indent:16px] max-sm:[--indent:10px] pointer-coarse:py-2 ${row.entry.id === selected ? "bg-hover" : ""}`}
                 style={{ paddingLeft: `calc(8px + ${row.depth} * var(--indent))` }}
               >
-                <span className={onPath.has(row.entry.id) ? "text-accent" : "text-fg-faint"}>
+                <span
+                  className={
+                    isLeaf
+                      ? "text-accent"
+                      : onPath.has(row.entry.id)
+                        ? "text-fg-muted"
+                        : "text-fg-faint"
+                  }
+                >
                   {isLeaf ? "◀" : "●"}
                 </span>
                 <span className="w-10 shrink-0 text-fg-faint">{kind}</span>

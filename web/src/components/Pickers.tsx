@@ -7,7 +7,7 @@ import { Icon } from "./Icon";
 import { inputClass } from "./Modal";
 
 const chipClass =
-  "flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:py-2";
+  "flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:min-h-11";
 
 export function ModelList({
   sessionId,
@@ -114,7 +114,7 @@ export function ModelChip({ sessionId, model }: { sessionId: string; model: Mode
           side="top"
           align="start"
           sideOffset={6}
-          className="z-50 rounded-lg border border-line bg-bg p-2 shadow-xl"
+          className="z-50 rounded-lg border border-line bg-float p-2 shadow-float"
         >
           <ModelList sessionId={sessionId} current={model} onDone={() => setOpen(false)} />
         </Popover.Content>
@@ -150,14 +150,14 @@ export function ThinkingChip({ sessionId, level }: { sessionId: string; level: s
           side="top"
           align="start"
           sideOffset={6}
-          className="z-50 w-44 rounded-lg border border-line bg-bg p-1 shadow-xl"
+          className="z-50 w-44 rounded-lg border border-line bg-float p-1 shadow-float"
         >
           {levels.map((value) => (
             <button
               type="button"
               key={value}
               onClick={() => choose(value).catch(reportError)}
-              className="flex w-full items-center rounded px-2 py-1 text-left text-[13px] hover:bg-hover"
+              className="flex w-full items-center rounded px-2 py-1 text-left text-[13px] hover:bg-hover pointer-coarse:min-h-11"
             >
               {value}
               {value === level ? <Icon name="check" size={12} className="ml-auto" /> : null}
@@ -170,7 +170,7 @@ export function ThinkingChip({ sessionId, level }: { sessionId: string; level: s
                 .then(() => toast(`Default thinking level: ${level}`))
                 .catch(reportError)
             }
-            className="mt-1 w-full border-t border-line px-2 pt-1.5 text-left text-[12px] text-fg-muted hover:text-fg"
+            className="mt-1 w-full border-t border-line px-2 pt-1.5 text-left text-[12px] text-fg-muted hover:text-fg pointer-coarse:min-h-11 pointer-coarse:pt-0"
           >
             Save as default
           </button>

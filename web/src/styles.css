@@ -12,6 +12,12 @@
   /* A surface that sits on bg-muted: the selected segment of a segmented control. */
   --bg-raised: #ffffff;
   --raised-shadow: 0 1px 2px rgb(0 0 0 / 0.16), 0 0 0 0.5px rgb(0 0 0 / 0.08);
+  /* Menus, popovers, completions and toasts float above the page; dark mode lifts them with a
+     lighter fill because shadows vanish on near-black. */
+  --bg-float: #ffffff;
+  --float-shadow: 0 8px 24px rgb(0 0 0 / 0.12), 0 1px 3px rgb(0 0 0 / 0.08);
+  /* Behind modals and off-canvas panels. */
+  --scrim: rgb(0 0 0 / 0.3);
   --fg: #1c1c1b;
   /* fg-muted and fg-faint both carry readable text, so each meets WCAG AA (4.5:1) on bg-subtle. */
   --fg-muted: #5c5c59;
@@ -39,6 +45,9 @@
     --bg-selected: #363635;
     --bg-raised: #3a3a39;
     --raised-shadow: none;
+    --bg-float: #222221;
+    --float-shadow: 0 0 0 1px rgb(255 255 255 / 0.04), 0 12px 32px rgb(0 0 0 / 0.6);
+    --scrim: rgb(0 0 0 / 0.55);
     --fg: #ececea;
     --fg-muted: #a3a3a0;
     --fg-faint: #898985;
@@ -65,6 +74,9 @@
   --bg-selected: #363635;
   --bg-raised: #3a3a39;
   --raised-shadow: none;
+  --bg-float: #222221;
+  --float-shadow: 0 0 0 1px rgb(255 255 255 / 0.04), 0 12px 32px rgb(0 0 0 / 0.6);
+  --scrim: rgb(0 0 0 / 0.55);
   --fg: #ececea;
   --fg-muted: #a3a3a0;
   --fg-faint: #898985;
@@ -90,6 +102,9 @@
   --color-selected: var(--bg-selected);
   --color-raised: var(--bg-raised);
   --shadow-raised: var(--raised-shadow);
+  --color-float: var(--bg-float);
+  --shadow-float: var(--float-shadow);
+  --color-scrim: var(--scrim);
   --color-fg: var(--fg);
   --color-fg-muted: var(--fg-muted);
   --color-fg-faint: var(--fg-faint);

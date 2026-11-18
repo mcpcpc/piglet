@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { additionDiff, diffStats } from "../lib/diff";
+import { relativePath, splitPath } from "../lib/format";
 import { branchPath, messageText, toolResultsById } from "../lib/tree";
 import type { AgentMessage, ToolCall } from "../protocol/types";
 import type { SessionView } from "../state/sessionView";
@@ -91,7 +92,7 @@ export function Drawer({ view, onDismiss }: { view: SessionView; onDismiss?: () 
   const tab = useApp((s) => s.drawerTab);
   const { files, commands } = useMemo(() => collect(view), [view]);
   const tabClass = (name: string) =>
-    `rounded-md px-2 py-1 text-[12px] pointer-coarse:py-2 ${tab === name ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`;
+    `rounded-md px-2 py-1 text-[12px] pointer-coarse:min-h-[42px] ${tab === name ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`;
   return (
     <aside
       className="flex h-full w-full flex-col border-l border-line bg-bg"
@@ -114,7 +115,7 @@ export function Drawer({ view, onDismiss }: { view: SessionView; onDismiss?: () 
           <button
             type="button"
             onClick={onDismiss}
-            className="ml-auto rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2.5"
+            className="ml-auto rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-3.5"
             aria-label="Close drawer"
           >
             <Icon name="close" size={14} />
@@ -131,12 +132,22 @@ export function Drawer({ view, onDismiss }: { view: SessionView; onDismiss?: () 
                   added: 0,
                   removed: 0,
                 });
+              const path = relativePath(file.path, view.state.cwd);
+              const { dir, name } = splitPath(path);
               return (
                 <section key={file.path}>
-                  <h3 className="mb-1.5 flex items-center gap-2 font-mono text-[12px]">
-                    <span className="truncate">{file.path}</span>
+                  <h3
+                    className="mb-1.5 flex items-center gap-2 font-mono text-[12px]"
+                    title={file.path}
+                  >
+                    <span className="flex min-w-0">
+                      {dir ? <span className="min-w-0 truncate text-fg-muted">{dir}</span> : null}
+                      <span className="min-w-0 shrink-[0.001] truncate font-medium">{name}</span>
+                    </span>
                     <span className="ml-auto shrink-0 text-add-fg">+{stats.added}</span>
-                    <span className="shrink-0 text-del-fg">−{stats.removed}</span>
+                    {stats.removed ? (
+                      <span className="shrink-0 text-del-fg">−{stats.removed}</span>
+                    ) : null}
                   </h3>
                   <div className="space-y-2">
                     {file.diffs.map((diff, index) => (
@@ -154,7 +165,7 @@ export function Drawer({ view, onDismiss }: { view: SessionView; onDismiss?: () 
           commands.map((run) => (
             <section key={run.key}>
               <h3 className="mb-1 flex items-center gap-2 font-mono text-[12px]">
-                <span className="text-accent">$</span>
+                <span className="text-fg-faint">$</span>
                 <span className="min-w-0 truncate">{run.command}</span>
                 {run.user ? <span className="text-fg-faint">(you)</span> : null}
                 {run.failed ? <span className="ml-auto text-danger">failed</span> : null}

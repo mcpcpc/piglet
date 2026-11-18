@@ -85,10 +85,10 @@ function Images({ content }: { content: UserMessage["content"] }) {
   );
 }
 
-// Turn-header controls share one 20px row. On touch each hit box grows to 32px and an equal
+// Turn-header controls share one 20px row. On touch each hit box grows to 44px and an equal
 // negative margin keeps its layout box unchanged, so the row height never shifts.
 const turnAction =
-  "grid size-5 place-items-center rounded hover:bg-hover hover:text-fg pointer-coarse:-m-1.5 pointer-coarse:size-8";
+  "grid size-5 place-items-center rounded hover:bg-hover hover:text-fg pointer-coarse:-m-3 pointer-coarse:size-11";
 const branchStep =
   "grid h-5 w-4 place-items-center rounded hover:bg-hover hover:text-fg pointer-coarse:-mx-2 pointer-coarse:-my-1.5 pointer-coarse:size-8";
 
@@ -146,7 +146,7 @@ function UserTurn({
         <span>You</span>
         {label ? <span className="ml-2 rounded bg-muted px-1.5 text-fg-muted">{label}</span> : null}
         {entry && (ctx.actions.editMessage || ctx.actions.forkFrom) ? (
-          <span className="-mr-1 ml-auto flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:gap-3 pointer-coarse:opacity-100">
+          <span className="-mr-1 ml-auto flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:gap-6 pointer-coarse:opacity-100">
             {ctx.actions.editMessage ? (
               <button
                 type="button"
@@ -188,7 +188,7 @@ function Thinking({ text, streaming }: { text: string; streaming: boolean }) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-[12px] italic text-fg-faint hover:text-fg-muted"
+        className="flex items-center gap-1 text-[12px] italic text-fg-faint hover:text-fg-muted pointer-coarse:min-h-11"
         aria-expanded={open}
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
@@ -350,14 +350,17 @@ function WorkingLine({ label }: { label: string }) {
   );
 }
 
+/** A `!command` the user ran; it starts open while running and when it is the latest message. */
 function BashTurn({
   message,
   live,
+  latest = false,
 }: {
   message?: BashExecutionMessage;
   live?: { command: string; output: string };
+  latest?: boolean;
 }) {
-  const [open, setOpen] = useState(Boolean(live));
+  const [open, setOpen] = useState(Boolean(live) || latest);
   const command = message?.command ?? live?.command ?? "";
   const output = message?.output ?? live?.output ?? "";
   const failed = message && (message.cancelled || (message.exitCode ?? 0) !== 0);
@@ -366,10 +369,11 @@ function BashTurn({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2 font-mono text-[12.5px] text-fg-muted hover:text-fg"
+        aria-expanded={open}
+        className="flex w-full items-center gap-2 font-mono text-[12.5px] text-fg-muted hover:text-fg pointer-coarse:min-h-11"
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
-        <span className="text-accent">$</span>
+        <span className="text-fg-faint">$</span>
         <span className="truncate text-fg">{command}</span>
         {message?.excludeFromContext ? (
           <span className="text-fg-faint">(not sent to model)</span>
@@ -394,7 +398,7 @@ function Divider({ title, detail }: { title: string; detail?: string }) {
       <button
         type="button"
         onClick={() => detail && setOpen(!open)}
-        className="flex w-full items-center gap-3 text-[11px] uppercase tracking-wide text-fg-faint"
+        className={`flex w-full items-center gap-3 text-[11px] uppercase tracking-wide text-fg-faint ${detail ? "pointer-coarse:min-h-11" : ""}`}
       >
         <span className="h-px flex-1 bg-line" />
         <span className="flex items-center gap-1">
@@ -435,7 +439,7 @@ function renderMessage(
     case "assistant":
       return <AssistantTurn key={key} message={message} ctx={ctx} streaming={false} />;
     case "bashExecution":
-      return <BashTurn key={key} message={message} />;
+      return <BashTurn key={key} message={message} latest={ctx.lastMessage === message} />;
     case "custom":
       return message.display ? (
         <div key={key} className="mt-4 rounded-md border border-line px-3 py-2">

@@ -32,7 +32,7 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-x-0 bottom-0 top-(--titlebar-bottom) z-40 bg-black/30" />
+        <Dialog.Overlay className="fixed inset-x-0 bottom-0 top-(--titlebar-bottom) z-40 bg-scrim" />
         <Dialog.Content
           onEscapeKeyDown={onEscapeKeyDown}
           {...(description ? {} : { "aria-describedby": undefined })}
@@ -41,7 +41,7 @@ export function Modal({
             event.preventDefault();
             initialFocus.current.focus();
           }}
-          className={`fixed left-1/2 top-[10dvh] z-50 flex max-h-[80dvh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-lg border border-line bg-bg shadow-xl max-sm:top-[calc(var(--titlebar-bottom)+0.5rem)] max-sm:max-h-[calc(100dvh-1rem-var(--titlebar-bottom))] max-sm:w-[calc(100vw-1rem)] ${className}`}
+          className={`fixed left-1/2 top-[10dvh] z-50 flex max-h-[80dvh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-lg border border-line bg-bg shadow-float max-sm:top-[calc(var(--titlebar-bottom)+0.5rem)] max-sm:max-h-[calc(100dvh-1rem-var(--titlebar-bottom))] max-sm:w-[calc(100vw-1rem)] ${className}`}
         >
           <div className="flex items-center border-b border-line px-4 py-3">
             <Dialog.Title className="text-[14px] font-semibold">{title}</Dialog.Title>

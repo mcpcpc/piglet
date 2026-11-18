@@ -11,7 +11,7 @@ export function Toasts() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`pointer-events-auto flex items-start gap-2 rounded-md border bg-bg px-3 py-2 text-[13px] shadow-lg ${
+          className={`pointer-events-auto flex items-start gap-2 rounded-lg border bg-float px-3 py-2 text-[13px] shadow-float ${
             toast.kind === "error" ? "border-danger/50 text-danger" : "border-line"
           }`}
         >
@@ -20,7 +20,7 @@ export function Toasts() {
             type="button"
             aria-label="Dismiss"
             onClick={() => dismissToast(toast.id)}
-            className="text-fg-faint hover:text-fg pointer-coarse:-m-2 pointer-coarse:p-2"
+            className="text-fg-faint hover:text-fg pointer-coarse:-m-4 pointer-coarse:p-4"
           >
             <Icon name="close" size={12} />
           </button>

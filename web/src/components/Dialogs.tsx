@@ -146,7 +146,7 @@ export function FolderPicker() {
             <button
               type="button"
               onClick={() => void load(listing.parent)}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] hover:bg-hover"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] hover:bg-hover pointer-coarse:min-h-11"
             >
               <Icon name="chevronLeft" size={12} /> ..
             </button>
@@ -157,7 +157,7 @@ export function FolderPicker() {
               key={entry.path}
               onClick={() => void load(entry.path)}
               onDoubleClick={() => choose(entry.path)}
-              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] hover:bg-hover"
+              className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-[13px] hover:bg-hover pointer-coarse:min-h-11"
             >
               <Icon name="folder" size={13} className="text-fg-faint" /> {entry.name}
             </button>

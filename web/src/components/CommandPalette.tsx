@@ -14,7 +14,7 @@ import {
   ui,
   useApp,
 } from "../state/store";
-import { fieldFocus, Modal } from "./Modal";
+import { Modal } from "./Modal";
 
 const item =
   "flex cursor-pointer items-baseline gap-3 rounded px-2 py-1.5 text-[13px] data-[selected=true]:bg-hover";
@@ -45,7 +45,7 @@ export function CommandPalette() {
         <Command.Input
           autoFocus
           placeholder="Type a command or search sessions…"
-          className={`w-full rounded-md border border-line bg-bg px-3 py-2 text-[14px] pointer-coarse:text-base ${fieldFocus}`}
+          className="w-full rounded-md border border-line bg-bg px-3 py-2 text-[14px] outline-none focus:border-fg-faint pointer-coarse:text-base"
         />
         <Command.List className="max-h-[50vh] overflow-y-auto">
           <Command.Empty className="p-3 text-[13px] text-fg-muted">No matches.</Command.Empty>

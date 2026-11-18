@@ -30,10 +30,13 @@ export async function addProject(): Promise<void> {
 // Row actions (session ⋯, project + and ⋯) share one box so their icons form a single column
 // with the header's rightmost button. Hover reveals them; touch screens always show them.
 const rowAction =
-  "grid size-6 shrink-0 place-items-center rounded text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100 pointer-coarse:size-8 pointer-coarse:opacity-100";
+  "grid size-6 shrink-0 place-items-center rounded text-fg-faint opacity-0 hover:text-fg focus:opacity-100 group-hover:opacity-100 pointer-coarse:size-11 pointer-coarse:opacity-100";
+// Menu rows are 44px tall on touch.
+const menuItem =
+  "flex cursor-pointer items-center rounded px-2 py-1 outline-none data-[highlighted]:bg-hover pointer-coarse:min-h-11";
 // Header buttons fit the 44px header on both pointer types.
 const headerButton =
-  "grid h-6 place-items-center rounded pointer-coarse:size-8 pointer-coarse:px-0";
+  "grid h-6 place-items-center rounded pointer-coarse:size-11 pointer-coarse:px-0";
 
 function SessionRow({
   info,
@@ -80,7 +83,7 @@ function SessionRow({
           onOpen?.();
           openSessionFile(info.path).catch(reportError);
         }}
-        className="flex min-w-0 flex-1 items-center gap-2 py-1 pl-5 text-left text-[13px] pointer-coarse:py-2.5"
+        className="flex min-w-0 flex-1 items-center gap-2 py-1 pl-5 text-left text-[13px] pointer-coarse:min-h-11"
         title={title}
         aria-current={active ? "page" : undefined}
       >
@@ -100,16 +103,13 @@ function SessionRow({
           <Icon name="more" size={14} />
         </Menu.Trigger>
         <Menu.Portal>
-          <Menu.Content className="z-50 min-w-36 rounded-md border border-line bg-bg p-1 text-[13px] shadow-lg">
-            <Menu.Item
-              onSelect={() => rename().catch(reportError)}
-              className="cursor-pointer rounded px-2 py-1 outline-none data-[highlighted]:bg-hover"
-            >
+          <Menu.Content className="z-50 min-w-36 rounded-lg border border-line bg-float p-1 text-[13px] shadow-float">
+            <Menu.Item onSelect={() => rename().catch(reportError)} className={menuItem}>
               Rename
             </Menu.Item>
             <Menu.Item
               onSelect={() => remove().catch(reportError)}
-              className="cursor-pointer rounded px-2 py-1 text-danger outline-none data-[highlighted]:bg-hover"
+              className={`${menuItem} text-danger`}
             >
               Delete
             </Menu.Item>
@@ -126,6 +126,7 @@ function SessionRow({
  */
 export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
   const projects = useApp((s) => s.projects);
+  const projectsLoaded = useApp((s) => s.projectsLoaded);
   const expanded = useApp((s) => s.expanded);
   const sessions = useApp((s) => s.sessionsByProject);
   const hello = useApp((s) => s.hello);
@@ -174,7 +175,7 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
         ) : null}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {projects.length === 0 ? (
+        {projectsLoaded && projects.length === 0 ? (
           <p className="px-2 py-4 text-[13px] text-fg-muted">Open a project folder to start.</p>
         ) : null}
         {projects.map((project) => (
@@ -183,7 +184,7 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
               <button
                 type="button"
                 onClick={() => toggleProject(project.cwd)}
-                className="flex min-w-0 flex-1 items-center gap-1 py-1 pl-1 text-left text-[12px] font-medium uppercase tracking-wide text-fg-muted pointer-coarse:py-2.5"
+                className="flex min-w-0 flex-1 items-center gap-1 py-1 pl-1 text-left text-[12px] font-medium uppercase tracking-wide text-fg-muted pointer-coarse:min-h-11"
                 title={project.cwd}
                 aria-expanded={Boolean(expanded[project.cwd])}
               >
@@ -206,24 +207,21 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
                   <Icon name="more" size={14} />
                 </Menu.Trigger>
                 <Menu.Portal>
-                  <Menu.Content className="z-50 min-w-40 rounded-md border border-line bg-bg p-1 text-[13px] shadow-lg">
-                    <Menu.Item
-                      onSelect={() => ui.trust(project.cwd)}
-                      className="cursor-pointer rounded px-2 py-1 outline-none data-[highlighted]:bg-hover"
-                    >
+                  <Menu.Content className="z-50 min-w-40 rounded-lg border border-line bg-float p-1 text-[13px] shadow-float">
+                    <Menu.Item onSelect={() => ui.trust(project.cwd)} className={menuItem}>
                       Project trust…
                     </Menu.Item>
                     {isElectron() ? (
                       <Menu.Item
                         onSelect={() => window.pigletNative?.revealPath(project.cwd)}
-                        className="cursor-pointer rounded px-2 py-1 outline-none data-[highlighted]:bg-hover"
+                        className={menuItem}
                       >
                         Reveal in file manager
                       </Menu.Item>
                     ) : null}
                     <Menu.Item
                       onSelect={() => forget(project.cwd).catch(reportError)}
-                      className="cursor-pointer rounded px-2 py-1 outline-none data-[highlighted]:bg-hover"
+                      className={menuItem}
                     >
                       Remove from list
                     </Menu.Item>
@@ -248,14 +246,14 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
         <button
           type="button"
           onClick={leave(() => addProject().catch(reportError))}
-          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:py-2.5"
+          className="flex items-center gap-1.5 rounded-md px-2 py-1 text-[13px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:min-h-11"
         >
           <Icon name="folder" size={14} /> Open folder
         </button>
         <button
           type="button"
           onClick={leave(() => ui.open("settings", "general"))}
-          className="ml-auto rounded-md p-1.5 text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:p-2.5"
+          className="ml-auto rounded-md p-1.5 text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:p-3.5"
           aria-label="Settings"
           title={hello ? `Settings · ${hello.agentDir}` : "Settings"}
         >
