@@ -188,7 +188,7 @@ function Thinking({ text, streaming }: { text: string; streaming: boolean }) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-[12px] italic text-fg-faint hover:text-fg-muted pointer-coarse:min-h-11"
+        className="flex w-full items-center gap-1 rounded text-left text-[12px] italic text-fg-faint hover:text-fg-muted active:bg-hover pointer-coarse:relative pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-0.5"
         aria-expanded={open}
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
@@ -370,7 +370,7 @@ function BashTurn({
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 font-mono text-[12.5px] text-fg-muted hover:text-fg pointer-coarse:min-h-11"
+        className="flex w-full items-center gap-2 rounded font-mono text-[12.5px] text-fg-muted hover:text-fg active:bg-hover"
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
         <span className="text-fg-faint">$</span>
@@ -398,7 +398,7 @@ function Divider({ title, detail }: { title: string; detail?: string }) {
       <button
         type="button"
         onClick={() => detail && setOpen(!open)}
-        className={`flex w-full items-center gap-3 text-[11px] uppercase tracking-wide text-fg-faint ${detail ? "pointer-coarse:min-h-11" : ""}`}
+        className="flex w-full items-center gap-3 text-[11px] uppercase tracking-wide text-fg-faint"
       >
         <span className="h-px flex-1 bg-line" />
         <span className="flex items-center gap-1">
