@@ -188,14 +188,14 @@ function Thinking({ text, streaming }: { text: string; streaming: boolean }) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-1 rounded text-left text-[12px] italic text-fg-faint hover:text-fg-muted active:bg-hover pointer-coarse:relative pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-0.5"
+        className="flex w-full items-center gap-2 rounded px-1 text-left text-[12px] italic text-fg-faint hover:text-fg-muted active:bg-hover pointer-coarse:relative pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-0.5"
         aria-expanded={open}
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
         {streaming ? "Thinking…" : "Thought"}
       </button>
       {open ? (
-        <div className="ml-4 mt-1 whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] italic text-fg-muted">
+        <div className="ml-5 mt-1 whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] italic text-fg-muted">
           {text}
         </div>
       ) : null}
