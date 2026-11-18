@@ -182,7 +182,8 @@ function UserTurn({
   );
 }
 
-function Thinking({ text, streaming }: { text: string; streaming: boolean }) {
+/** A "Thought" toggle for reasoning that leads into text (reasoning before a call folds into its row). */
+function Thinking({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   if (!text.trim()) return null;
   return (
@@ -194,7 +195,7 @@ function Thinking({ text, streaming }: { text: string; streaming: boolean }) {
         aria-expanded={open}
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
-        {streaming ? "Thinking…" : "Thought"}
+        Thought
       </button>
       {open ? (
         <div className="ml-4 mt-1 whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] italic text-fg-muted">
@@ -231,22 +232,16 @@ function AssistantTurn({
     <div
       className={`${ctx.continuesRun.has(message) ? "mt-1 pointer-coarse:mt-0" : "mt-3"} space-y-1 pointer-coarse:space-y-0`}
     >
-      {message.content.map((block, index) => {
-        const blockKey = `${block.type}-${index}`;
-        const last = index === message.content.length - 1;
-        if (block.type === "thinking") {
-          return ctx.showThinking ? (
-            <Thinking key={blockKey} text={block.thinking} streaming={streaming && last} />
-          ) : null;
-        }
-        if (block.type === "text") {
-          return block.text ? <Markdown key={blockKey} text={block.text} /> : null;
-        }
+      {turnItems(message, ctx.showThinking, streaming).map((item) => {
+        if (item.kind === "thought") return <Thinking key={item.key} text={item.text} />;
+        if (item.kind === "thinking") return <ThinkingRow key={item.key} />;
+        if (item.kind === "text") return <Markdown key={item.key} text={item.text} />;
+        const block = item.call;
         const live = ctx.tools[block.id];
         const result = ctx.results.get(block.id);
         return (
           <ToolRow
-            key={block.id}
+            key={item.key}
             call={block}
             status={toolStatus(block, ctx, streaming)}
             result={result ?? live?.result}
@@ -254,6 +249,7 @@ function AssistantTurn({
             durationMs={result?.durationMs ?? live?.durationMs}
             cwd={ctx.cwd}
             onShowAll={ctx.actions.showAllBash}
+            reasoning={item.reasoning}
           />
         );
       })}
@@ -326,7 +322,7 @@ export function workingLabel(p: {
   const last = p.streaming?.content.at(-1);
   if (last?.type === "toolCall") return null;
   if (last?.type === "text" && last.text) return null;
-  if (last?.type === "thinking") return p.showThinking && last.thinking.trim() ? null : "Thinking…";
+  if (last?.type === "thinking") return p.showThinking ? null : "Thinking…";
   return "Working…";
 }
 
@@ -420,19 +416,70 @@ function Divider({ title, detail }: { title: string; detail?: string }) {
   );
 }
 
-/** Whether a turn starts and ends with a tool row, counting only blocks that render. */
-function toolEdges(message: AssistantMessage, showThinking: boolean) {
-  const visible = message.content.filter(
-    (b) =>
-      b.type === "toolCall" ||
-      (b.type === "text" && b.text) ||
-      (b.type === "thinking" && showThinking && b.thinking.trim()),
+type TurnItem =
+  | { kind: "thought"; key: string; text: string }
+  | { kind: "thinking"; key: string }
+  | { kind: "text"; key: string; text: string }
+  | { kind: "tool"; key: string; call: ToolCall & { partialJson?: string }; reasoning?: string };
+
+/**
+ * What a turn renders, in order. Reasoning right before a tool call folds into that call's row
+ * (one row per step); reasoning before text keeps its own "Thought" toggle; reasoning still
+ * streaming with nothing after it yet is a "Thinking…" row. Hidden thinking renders nothing.
+ */
+export function turnItems(
+  message: AssistantMessage,
+  showThinking: boolean,
+  streaming: boolean,
+): TurnItem[] {
+  const items: TurnItem[] = [];
+  let pending: { key: string; text: string } | null = null;
+  message.content.forEach((block, index) => {
+    if (block.type === "thinking") {
+      if (!showThinking) return;
+      pending = pending
+        ? { key: pending.key, text: `${pending.text}\n\n${block.thinking}` }
+        : { key: `thinking-${index}`, text: block.thinking };
+      return;
+    }
+    if (block.type === "text") {
+      if (!block.text) return;
+      if (pending?.text.trim()) items.push({ kind: "thought", ...pending });
+      pending = null;
+      items.push({ kind: "text", key: `text-${index}`, text: block.text });
+      return;
+    }
+    const reasoning = pending?.text.trim() ? pending.text : undefined;
+    items.push({ kind: "tool", key: block.id, call: block, reasoning });
+    pending = null;
+  });
+  const trailing = pending as { key: string; text: string } | null;
+  if (trailing && streaming) items.push({ kind: "thinking", key: trailing.key });
+  else if (trailing?.text.trim()) items.push({ kind: "thought", ...trailing });
+  return items;
+}
+
+/** A tool-row-shaped placeholder while the model reasons before its next step. */
+function ThinkingRow() {
+  return (
+    <div className="flex min-w-0 items-center gap-2 px-1 py-0.5 font-mono text-[12.5px] pointer-coarse:min-h-10">
+      <span className="w-3 shrink-0" />
+      <span role="status" className="text-fg-muted">
+        Thinking…
+      </span>
+      <span className="ml-auto pl-2">
+        <Spinner label={null} className="text-running" />
+      </span>
+    </div>
   );
+}
+
+/** Whether a turn starts and ends with a row in a tool run (a tool or a "Thinking…" row). */
+function toolEdges(message: AssistantMessage, showThinking: boolean, streaming: boolean) {
+  const items = turnItems(message, showThinking, streaming);
+  const inRun = (item?: TurnItem) => item?.kind === "tool" || item?.kind === "thinking";
   const failed = message.stopReason === "error" || message.stopReason === "aborted";
-  return {
-    startsWithTool: visible[0]?.type === "toolCall",
-    endsWithTool: !failed && visible.at(-1)?.type === "toolCall",
-  };
+  return { startsWithTool: inRun(items[0]), endsWithTool: !failed && inRun(items.at(-1)) };
 }
 
 /**
@@ -442,6 +489,7 @@ function toolEdges(message: AssistantMessage, showThinking: boolean) {
 export function toolRunContinuations(
   messages: AgentMessage[],
   showThinking: boolean,
+  streaming: AgentMessage | null = null,
 ): Set<AgentMessage> {
   const continues = new Set<AgentMessage>();
   let previousEndsWithTool = false;
@@ -451,7 +499,11 @@ export function toolRunContinuations(
       previousEndsWithTool = false;
       continue;
     }
-    const { startsWithTool, endsWithTool } = toolEdges(message, showThinking);
+    const { startsWithTool, endsWithTool } = toolEdges(
+      message,
+      showThinking,
+      message === streaming,
+    );
     if (previousEndsWithTool && startsWithTool) continues.add(message);
     previousEndsWithTool = endsWithTool;
   }
@@ -510,6 +562,7 @@ export const Transcript = memo(function Transcript(props: TranscriptProps) {
     continuesRun: toolRunContinuations(
       streaming ? [...allMessages, streaming] : allMessages,
       props.showThinking ?? true,
+      streaming ?? null,
     ),
   };
   const working = workingLabel({
