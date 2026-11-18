@@ -1,41 +1,78 @@
 import * as Popover from "@radix-ui/react-popover";
+import { Command } from "cmdk";
 import { useEffect, useMemo, useState } from "react";
+import { COARSE_POINTER, useMediaQuery } from "../lib/media";
+import { modelKey, recentModels, rememberModel, shortModelName } from "../lib/models";
 import { shortcutLabel } from "../lib/native";
 import type { ModelInfo } from "../protocol/types";
-import { reportError, request, toast } from "../state/store";
+import { refreshProviders, reportError, request, toast, ui, useApp } from "../state/store";
 import { Icon } from "./Icon";
-import { inputClass } from "./Modal";
 
 const chipClass =
   "flex min-w-0 items-center gap-1 rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:min-h-11";
 
+/** Lists longer than this get Current and Recent groups at the top. */
+const PIN_AFTER = 10;
+const groupClass =
+  "text-[11px] text-fg-faint [&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2";
+const modelRow =
+  "flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-[13px] text-fg data-[selected=true]:bg-hover pointer-coarse:min-h-11";
+
+/**
+ * Searchable model list: Current and Recent first (in long lists, while not searching), then
+ * each provider.
+ * Arrow keys and Enter work from the search field; `autoFocus` is off on touch so opening it
+ * doesn't raise the keyboard.
+ */
 export function ModelList({
   sessionId,
   current,
   onDone,
+  autoFocus = true,
 }: {
   sessionId: string;
   current: ModelInfo | null;
   onDone: () => void;
+  autoFocus?: boolean;
 }) {
-  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [models, setModels] = useState<ModelInfo[] | null>(null);
   const [query, setQuery] = useState("");
+  const providers = useApp((s) => s.providers?.providers ?? null);
   useEffect(() => {
-    request<ModelInfo[]>("get_available_models", { sessionId }).then(setModels).catch(reportError);
+    request<ModelInfo[]>("get_available_models", { sessionId })
+      .then(setModels)
+      .catch((error) => {
+        setModels([]);
+        reportError(error);
+      });
   }, [sessionId]);
-  const filtered = useMemo(() => {
-    const q = query.toLowerCase();
-    return models.filter((m) => `${m.provider}/${m.id} ${m.name ?? ""}`.toLowerCase().includes(q));
-  }, [models, query]);
+  useEffect(() => {
+    if (!providers) void refreshProviders();
+  }, [providers]);
+
+  const byKey = useMemo(() => new Map((models ?? []).map((m) => [modelKey(m), m])), [models]);
+  const currentKey = current ? modelKey(current) : null;
+  const currentModel = currentKey ? byKey.get(currentKey) : undefined;
+  const recent = useMemo(
+    () =>
+      recentModels()
+        .filter((key) => key !== currentKey)
+        .flatMap((key) => byKey.get(key) ?? []),
+    [byKey, currentKey],
+  );
   const groups = useMemo(() => {
     const map = new Map<string, ModelInfo[]>();
-    for (const model of filtered)
+    for (const model of models ?? [])
       map.set(model.provider, [...(map.get(model.provider) ?? []), model]);
-    return [...map.entries()];
-  }, [filtered]);
+    const name = (id: string) => providers?.find((p) => p.id === id)?.name ?? id;
+    return [...map.entries()]
+      .map(([id, items]) => ({ id, name: name(id), items }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [models, providers]);
 
   const choose = async (model: ModelInfo) => {
     await request("set_model", { sessionId, provider: model.provider, modelId: model.id });
+    rememberModel(modelKey(model));
     onDone();
   };
   const saveDefault = async () => {
@@ -43,71 +80,98 @@ export function ModelList({
     await request("update_settings", {
       patch: { defaultProvider: current.provider, defaultModel: current.id },
     });
-    toast(`Default model: ${current.provider}/${current.id}`);
+    toast(`Default model set to ${current.name ?? current.id}`);
   };
+  const row = (model: ModelInfo, value: string) => (
+    <Command.Item
+      key={value}
+      value={value}
+      onSelect={() => void choose(model).catch(reportError)}
+      className={modelRow}
+    >
+      <span className="min-w-0 flex-1 truncate">{model.name ?? model.id}</span>
+      {modelKey(model) === currentKey ? (
+        <Icon name="check" size={12} className="shrink-0 text-fg-muted" title="Current model" />
+      ) : null}
+    </Command.Item>
+  );
+  // Pinning saves scrolling; a short list already shows everything, so it skips the pins.
+  const pinned = !query.trim() && (models?.length ?? 0) > PIN_AFTER;
 
   return (
-    <div className="flex max-h-[60dvh] w-[min(20rem,calc(100vw-2.5rem))] flex-col">
-      <input
-        className={`${inputClass} mb-2`}
-        placeholder="Search models"
+    <Command
+      label="Choose a model"
+      loop
+      className="flex max-h-[60dvh] w-[min(20rem,calc(100vw-2.5rem))] flex-col max-sm:w-full"
+    >
+      <Command.Input
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        // biome-ignore lint/a11y/noAutofocus: the picker exists to type into
-        autoFocus
+        onValueChange={setQuery}
+        autoFocus={autoFocus}
+        placeholder="Search models"
+        className="w-full border-b border-line bg-transparent px-2 pb-2 pt-1 text-[13px] outline-none placeholder:text-fg-faint pointer-coarse:text-base"
       />
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {models.length === 0 ? (
+      <Command.List className="mt-1 min-h-0 flex-1 overflow-y-auto">
+        {models === null ? (
+          <p className="p-2 text-[13px] text-fg-muted">Loading models…</p>
+        ) : models.length === 0 ? (
           <p className="p-2 text-[13px] text-fg-muted">
             No models available. Add an API key or sign in under Settings → Providers.
           </p>
+        ) : (
+          <Command.Empty className="p-2 text-[13px] text-fg-muted">No models match.</Command.Empty>
+        )}
+        {pinned && currentModel ? (
+          <Command.Group heading="Current" className={groupClass}>
+            {row(currentModel, `current ${currentKey}`)}
+          </Command.Group>
         ) : null}
-        {groups.map(([provider, items]) => (
-          <div key={provider} className="mb-2">
-            <div className="px-2 py-1 text-[11px] uppercase tracking-wide text-fg-faint">
-              {provider}
-            </div>
-            {items.map((model) => {
-              const selected = current?.provider === model.provider && current.id === model.id;
-              return (
-                <button
-                  type="button"
-                  key={`${model.provider}/${model.id}`}
-                  onClick={() => choose(model).catch(reportError)}
-                  className={`flex w-full items-center gap-2 rounded px-2 py-1 text-left text-[13px] hover:bg-hover ${selected ? "font-medium" : ""}`}
-                >
-                  <span className="min-w-0 flex-1 truncate">{model.name ?? model.id}</span>
-                  {model.reasoning ? (
-                    <span className="text-[10px] text-fg-faint">reasoning</span>
-                  ) : null}
-                  {selected ? <Icon name="check" size={12} /> : null}
-                </button>
-              );
-            })}
-          </div>
+        {pinned && recent.length ? (
+          <Command.Group heading="Recent" className={groupClass}>
+            {recent.map((model) => row(model, `recent ${modelKey(model)}`))}
+          </Command.Group>
+        ) : null}
+        {groups.map((group) => (
+          <Command.Group key={group.id} heading={group.name} className={groupClass}>
+            {group.items.map((model) => row(model, `${modelKey(model)} ${model.name ?? ""}`))}
+          </Command.Group>
         ))}
-      </div>
+      </Command.List>
       <button
         type="button"
         onClick={() => saveDefault().catch(reportError)}
-        className="mt-2 border-t border-line pt-2 text-left text-[12px] text-fg-muted hover:text-fg"
         disabled={!current}
+        className="mt-1 flex w-full items-center border-t border-line px-2 pb-1 pt-2 text-left text-[12px] text-fg-muted hover:text-fg disabled:cursor-not-allowed pointer-coarse:min-h-11"
       >
         Save current model as default
       </button>
-    </div>
+    </Command>
   );
 }
 
+/** The composer's model button: a popover with a mouse, the full-screen dialog on touch. */
 export function ModelChip({ sessionId, model }: { sessionId: string; model: ModelInfo | null }) {
   const [open, setOpen] = useState(false);
+  const touch = useMediaQuery(COARSE_POINTER);
+  const name = model ? (model.name ?? model.id) : "No model";
+  const label = (
+    <>
+      <span className="max-w-48 truncate max-sm:max-w-36">{shortModelName(name)}</span>
+      <Icon name="chevronDown" size={11} />
+    </>
+  );
+  const title = `${name} (${shortcutLabel("P")} to cycle)`;
+  if (touch) {
+    return (
+      <button type="button" className={chipClass} title={title} onClick={() => ui.open("models")}>
+        {label}
+      </button>
+    );
+  }
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger className={chipClass} title={`Model (${shortcutLabel("P")} to cycle)`}>
-        <span className="max-w-48 truncate max-sm:max-w-28">
-          {model ? (model.name ?? model.id) : "No model"}
-        </span>
-        <Icon name="chevronDown" size={11} />
+      <Popover.Trigger className={chipClass} title={title}>
+        {label}
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
