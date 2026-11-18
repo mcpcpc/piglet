@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantMessage, SessionEntry } from "../protocol/types";
-import { Transcript, workingLabel } from "./Transcript";
+import { Transcript, toolRunContinuations, workingLabel } from "./Transcript";
 
 const entries: SessionEntry[] = [
   {
@@ -165,5 +165,40 @@ describe("user shell commands", () => {
     };
     render(<Transcript entries={[...entries, ran]} leafId="b1" />);
     expect(screen.getByText("nothing to commit")).toBeTruthy();
+  });
+});
+
+describe("toolRunContinuations", () => {
+  const base = (failed[1] as { message: AssistantMessage }).message;
+  const turn = (content: AssistantMessage["content"], stopReason = "toolUse") =>
+    ({ ...base, content, stopReason }) as AssistantMessage;
+  const call = (id: string) => ({ type: "toolCall" as const, id, name: "read", arguments: {} });
+  const result = (id: string) => ({
+    role: "toolResult" as const,
+    toolCallId: id,
+    toolName: "read",
+    content: [],
+    isError: false,
+    timestamp: 0,
+  });
+
+  it("joins turns whose tool rows follow straight on, across tool results", () => {
+    const a = turn([{ type: "text", text: "Looking." }, call("1")]);
+    const b = turn([call("2")]);
+    const c = turn([{ type: "text", text: "Now editing." }, call("3")]);
+    const joined = toolRunContinuations([a, result("1"), b, result("2"), c], true);
+    expect([...joined]).toEqual([b]);
+  });
+
+  it("breaks the run at user messages, failures and visible thinking", () => {
+    const a = turn([call("1")]);
+    const user = { role: "user" as const, content: "wait", timestamp: 0 };
+    const afterUser = turn([call("2")]);
+    expect(toolRunContinuations([a, user, afterUser], true).size).toBe(0);
+    const thinking = turn([{ type: "thinking", thinking: "hmm" }, call("3")]);
+    expect(toolRunContinuations([a, thinking], true).size).toBe(0);
+    expect(toolRunContinuations([a, thinking], false).has(thinking)).toBe(true);
+    const errored = turn([call("4")], "error");
+    expect(toolRunContinuations([errored, turn([call("5")])], true).size).toBe(0);
   });
 });
