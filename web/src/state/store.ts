@@ -320,7 +320,9 @@ function onEvent(frame: EventFrame): void {
   if (!view) return;
   const result = reduce(view, event);
   set((s) => ({ views: { ...s.views, [id]: result.view } }));
-  if (result.notice) toast(result.notice.text, result.notice.kind);
+  // The open session shows a run error in its transcript; others only have the toast.
+  const inline = event.type === "agent_error" && id === get().activeId;
+  if (result.notice && !inline) toast(result.notice.text, result.notice.kind);
   if (result.editorText) setDraft(id, result.editorText);
   if (event.type === "agent_settled" && id !== get().activeId) {
     const name = view.state.sessionName ?? "Session";

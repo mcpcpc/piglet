@@ -134,6 +134,7 @@ class SessionHandlers:
             "follow_up": follow_up,
             "abort": abort,
             "abort_retry": abort,
+            "retry": _sync(lambda c: {"disposition": ctx.session(c).retry()}),
             "clear_queue": _sync(lambda c: ctx.session(c).clear_queue()),
             "get_state": _sync(lambda c: ctx.session(c).state()),
             "get_messages": _sync(lambda c: ctx.session(c).file.context().messages),

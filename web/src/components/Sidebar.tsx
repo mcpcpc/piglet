@@ -72,7 +72,7 @@ function SessionRow({
 
   return (
     <div
-      className={`group flex items-center rounded-md pr-1 ${active ? "bg-muted" : "hover:bg-hover"}`}
+      className={`group flex items-center rounded-md pr-1 ${active ? "bg-selected font-medium" : "hover:bg-hover"}`}
     >
       <button
         type="button"
@@ -82,6 +82,7 @@ function SessionRow({
         }}
         className="flex min-w-0 flex-1 items-center gap-2 py-1 pl-5 text-left text-[13px] pointer-coarse:py-2.5"
         title={title}
+        aria-current={active ? "page" : undefined}
       >
         <span className="min-w-0 flex-1 truncate">{title}</span>
         {running ? (

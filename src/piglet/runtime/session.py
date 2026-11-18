@@ -343,6 +343,30 @@ class AgentSession:  # noqa: PLR0904 - the session's public surface mirrors Pi's
         self._pending_bash = []
         return "started"
 
+    def retry(self) -> str:
+        """Run the agent again after a failed turn (a GUI Retry button); returns ``started``.
+
+        Like auto-retry, the failed reply stays in the session but is not sent to the model, so
+        the run continues from the user message or tool results before it.
+
+        Raises:
+            SessionBusyError: If the agent is running.
+            NoModelError: If no model is configured.
+            ValueError: If the branch does not end in a failed turn.
+        """
+        if self.is_streaming:
+            raise SessionBusyError("The agent is already working.")
+        if self.model is None:
+            raise NoModelError("No model is configured. Add an API key or log in under Settings.")
+        messages = self.file.context().messages
+        last = messages[-1] if messages else {}
+        failed = last.get("role") == "assistant" and last.get("stopReason") == "error"
+        if not failed and last.get("role") not in {"user", "toolResult"}:
+            raise ValueError("There's no failed turn to retry.")
+        self._start(self._pending_bash)
+        self._pending_bash = []
+        return "started"
+
     def enqueue(self, kind: str, text: str, images: list[dict[str, Any]] | None = None) -> str:
         """Queue a steering or follow-up message (or start a run when idle)."""
         expanded = self.expand_input(text)

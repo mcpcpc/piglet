@@ -65,12 +65,15 @@ export function Icon({
   );
 }
 
-export function Spinner({ className = "" }: { className?: string }) {
-  return (
-    <span
-      className={`inline-block h-3 w-3 shrink-0 animate-spin rounded-full border-[1.5px] border-current border-t-transparent ${className}`}
-      role="status"
-      aria-label="Running"
-    />
-  );
+/** A spinning ring announced as `label`; pass `label={null}` when nearby text already says it. */
+export function Spinner({
+  className = "",
+  label = "Running",
+}: {
+  className?: string;
+  label?: string | null;
+}) {
+  const classes = `inline-block h-3 w-3 shrink-0 animate-spin rounded-full border-[1.5px] border-current border-t-transparent ${className}`;
+  if (label === null) return <span className={classes} aria-hidden="true" />;
+  return <span className={classes} role="status" aria-label={label} />;
 }

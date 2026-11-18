@@ -26,6 +26,7 @@ export interface CommandMap {
   set_auto_compaction: { sessionId: string; enabled: boolean };
   set_auto_retry: { sessionId: string; enabled: boolean };
   abort_retry: { sessionId: string };
+  retry: { sessionId: string };
   bash: { sessionId: string; command: string; excludeFromContext?: boolean };
   abort_bash: { sessionId: string };
   get_session_stats: { sessionId: string };
@@ -98,6 +99,7 @@ export const SESSION_COMMANDS: ReadonlySet<CommandType> = new Set<CommandType>([
   "set_auto_compaction",
   "set_auto_retry",
   "abort_retry",
+  "retry",
   "bash",
   "abort_bash",
   "get_session_stats",

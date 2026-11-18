@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from piglet.ai.stream import prepare_messages
 from piglet.compaction.compactor import CompactionError
 from piglet.config.auth import AuthStore, CredentialResolver
 from piglet.runtime import navigation
@@ -144,6 +145,43 @@ class PromptTest(SessionCase):
         self.assertTrue(is_retryable_error({"errorMessage": "rate limit exceeded"}))
         self.assertTrue(is_overflow_error({"errorMessage": "prompt is too long: 300000 tokens"}))
         self.assertFalse(is_retryable_error({"errorMessage": "prompt is too long"}))
+
+    def test_retry_reruns_a_failed_turn_without_the_failed_reply(self):
+        client = ScriptedClient([error_reply("bad key", 401), text_reply("ok")])
+        session = self.manager(client).new_session(self.cwd)
+        self.run_prompt(session, "x")
+        last = session.file.context().messages[-1]
+        self.assertEqual((last["role"], last["stopReason"]), ("assistant", "error"))
+
+        async def go():
+            disposition = session.retry()
+            await session.wait_idle()
+            return disposition
+
+        self.assertEqual(asyncio.run(go()), "started")
+        self.assertEqual(session.last_assistant_text(), "ok")
+        model, context, _ = client.requests[1]
+        sent = prepare_messages(context.messages, model)
+        self.assertEqual([m["role"] for m in sent], ["user"])
+        users = [m for m in session.file.context().messages if m["role"] == "user"]
+        self.assertEqual(len(users), 1)
+
+    def test_retry_refuses_when_busy_or_nothing_failed(self):
+        client = ScriptedClient([text_reply("done"), text_reply("slow")], delay=0.05)
+        session = self.manager(client).new_session(self.cwd)
+        with self.assertRaises(ValueError):
+            session.retry()
+        self.run_prompt(session, "x")
+        with self.assertRaises(ValueError):
+            session.retry()
+
+        async def busy():
+            await session.prompt("y")
+            with self.assertRaises(SessionBusyError):
+                session.retry()
+            await session.wait_idle()
+
+        asyncio.run(busy())
 
     def test_templates_and_skills_expand(self):
         prompts = self.agent / "prompts"
