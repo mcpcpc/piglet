@@ -11,6 +11,8 @@ export function Modal({
   description,
   initialFocus,
   onEscapeKeyDown,
+  className = "",
+  bodyClassName = "overflow-y-auto p-4",
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +24,10 @@ export function Modal({
   initialFocus?: RefObject<HTMLElement | null>;
   /** Runs before Esc closes the dialog; `event.preventDefault()` keeps it open. */
   onEscapeKeyDown?: (event: KeyboardEvent) => void;
+  /** Extra classes for the dialog box, such as a fixed height. */
+  className?: string;
+  /** Classes for the body under the title bar; it scrolls by default. */
+  bodyClassName?: string;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
@@ -35,15 +41,15 @@ export function Modal({
             event.preventDefault();
             initialFocus.current.focus();
           }}
-          className={`fixed left-1/2 top-[10dvh] z-50 flex max-h-[80dvh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-lg border border-line bg-bg shadow-xl max-sm:top-[calc(var(--titlebar-bottom)+0.5rem)] max-sm:max-h-[calc(100dvh-1rem-var(--titlebar-bottom))] max-sm:w-[calc(100vw-1rem)]`}
+          className={`fixed left-1/2 top-[10dvh] z-50 flex max-h-[80dvh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-xl border border-line bg-bg shadow-xl max-sm:top-[calc(var(--titlebar-bottom)+0.5rem)] max-sm:max-h-[calc(100dvh-1rem-var(--titlebar-bottom))] max-sm:w-[calc(100vw-1rem)] ${className}`}
         >
-          <div className="flex items-center border-b border-line px-4 py-3">
-            <Dialog.Title className="text-[14px] font-semibold">{title}</Dialog.Title>
+          <div className="flex items-center border-b border-line py-2.5 pr-2 pl-4">
+            <Dialog.Title className="text-[16px] font-semibold">{title}</Dialog.Title>
             <Dialog.Close
-              className="-my-1 ml-auto flex items-center justify-center rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:-my-2.5 pointer-coarse:size-11"
+              className="ml-auto flex size-8 items-center justify-center rounded-lg text-fg-muted hover:bg-hover pointer-coarse:-my-1.5 pointer-coarse:size-11"
               aria-label="Close"
             >
-              <Icon name="close" size={14} />
+              <Icon name="close" size={16} />
             </Dialog.Close>
           </div>
           {description ? (
@@ -51,7 +57,7 @@ export function Modal({
               {description}
             </Dialog.Description>
           ) : null}
-          <div data-modal-body className="min-h-0 flex-1 overflow-y-auto p-4">
+          <div data-modal-body className={`min-h-0 flex-1 ${bodyClassName}`}>
             {children}
           </div>
         </Dialog.Content>
@@ -60,17 +66,24 @@ export function Modal({
   );
 }
 
-type ButtonVariant = "default" | "primary" | "danger" | "ghost";
+/**
+ * `default` is the secondary button. `danger` starts a destructive action, and `dangerFill`
+ * commits one (the confirm's button). Disabled buttons keep readable text instead of fading.
+ */
+type ButtonVariant = "default" | "primary" | "danger" | "dangerFill" | "ghost";
 
 /** Button styling, also used for links that look like buttons. */
 export function buttonClass(variant: ButtonVariant = "default", className = ""): string {
   const styles = {
-    default: "border border-line bg-bg hover:bg-hover",
-    primary: "bg-accent text-accent-fg hover:opacity-90",
-    danger: "border border-danger/40 text-danger hover:bg-del-bg",
-    ghost: "hover:bg-hover",
+    default: "bg-muted text-fg hover:bg-hover disabled:hover:bg-muted",
+    primary:
+      "bg-accent text-accent-fg hover:opacity-90 disabled:bg-muted disabled:hover:opacity-100",
+    danger: "bg-muted text-danger hover:bg-del-bg disabled:hover:bg-muted",
+    dangerFill:
+      "bg-danger text-accent-fg hover:opacity-90 disabled:bg-muted disabled:hover:opacity-100",
+    ghost: "text-fg hover:bg-hover disabled:hover:bg-transparent",
   }[variant];
-  return `whitespace-nowrap rounded-md px-3 py-1.5 text-[13px] disabled:opacity-50 pointer-coarse:py-2.5 ${styles} ${className}`;
+  return `inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 text-[13px] font-medium disabled:cursor-not-allowed disabled:text-fg-muted pointer-coarse:h-11 ${styles} ${className}`;
 }
 
 export function Button({
@@ -94,9 +107,14 @@ export function Button({
 
 // Text fields show focus as an accent border plus a soft halo on their own radius. 16px text on
 // touch devices stops iOS Safari from zooming in when a field is focused.
-export const fieldFocus = "outline-none focus:border-accent focus:ring-2 focus:ring-accent/25";
+export const fieldFocus =
+  "outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/30 aria-invalid:border-danger aria-invalid:ring-[3px] aria-invalid:ring-del-bg";
 
-export const inputClass = `w-full rounded-md border border-line bg-bg px-2.5 py-1.5 text-[13px] pointer-coarse:text-base ${fieldFocus}`;
+/** A filled field without a width: no outline until it has focus or an error. */
+export const fieldClass = `rounded-lg border border-transparent bg-muted px-3 py-2 text-[14px] text-fg placeholder:text-fg-muted disabled:cursor-not-allowed disabled:text-fg-muted pointer-coarse:py-2.5 pointer-coarse:text-base ${fieldFocus}`;
+
+/** A filled field as wide as its container. */
+export const inputClass = `w-full ${fieldClass}`;
 
 /**
  * A dialog body that asks for text: one autofocused line, or a monospace editor when

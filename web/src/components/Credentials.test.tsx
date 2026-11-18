@@ -189,7 +189,15 @@ describe("Settings → Providers", () => {
     await openProviders();
     const page = await openPage("OpenAI");
     expect(within(page).getByText("Signed in with ChatGPT")).toBeTruthy();
-    fireEvent.click(within(page).getByRole("button", { name: "Use an API key instead" }));
+    // Account and API key are one segmented choice; switching it only changes the view.
+    const method = within(page).getByRole("group", { name: "Connection method" });
+    expect(
+      (within(method).getByRole("radio", { name: "ChatGPT account" }) as HTMLInputElement).checked,
+    ).toBe(true);
+    fireEvent.click(within(method).getByRole("radio", { name: "API key" }));
+    expect(within(page).getByText("Saving a key signs you out of ChatGPT.")).toBeTruthy();
+    expect(sent("logout")).toEqual([]);
+    fireEvent.click(within(page).getByRole("button", { name: "Add API key for OpenAI" }));
     expect(within(page).getByText("Saving a key signs you out of ChatGPT.")).toBeTruthy();
     expect(within(page).getByRole("button", { name: "Save key and sign out" })).toBeTruthy();
   });

@@ -1,14 +1,10 @@
 // Settings: a GUI over settings.json (global), models.json, auth.json and the project file.
+// Every tab is built from SettingsKit: quiet sections of rows, one control per kind of decision.
 
-import {
-  type KeyboardEvent,
-  type ReactNode,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import { useMediaQuery } from "../lib/media";
 import { shortcutLabel } from "../lib/native";
+import { reasonText } from "../lib/providers";
 import type { ModelInfo } from "../protocol/types";
 import {
   activeView,
@@ -16,7 +12,6 @@ import {
   refreshSettings,
   reportError,
   request,
-  toast,
   ui,
   useApp,
 } from "../state/store";
@@ -30,8 +25,21 @@ import {
   TOUCH_TARGETS,
 } from "./Credentials";
 import { Button, inputClass, Modal } from "./Modal";
-
-type Settings = Record<string, unknown>;
+import {
+  type Choice,
+  ChoiceSetting,
+  FileEditor,
+  InlineConfirm,
+  NumberSetting,
+  type Patch,
+  type SaveStatus,
+  Section,
+  SelectSetting,
+  type Settings,
+  StatusText,
+  SwitchSetting,
+  TextSetting,
+} from "./SettingsKit";
 
 interface SettingsData {
   global: Settings;
@@ -40,6 +48,11 @@ interface SettingsData {
   agentDir: string;
   globalPath: string;
   projectPath: string | null;
+}
+
+interface TabProps {
+  data: SettingsData;
+  patch: Patch;
 }
 
 const TABS = [
@@ -52,8 +65,50 @@ const TABS = [
   ["project", "Project"],
 ] as const;
 
-const TOOLS = ["read", "bash", "edit", "write", "grep", "find", "ls"];
-const LEVELS = ["off", "minimal", "low", "medium", "high", "xhigh", "max"];
+/** Below Tailwind's sm: the tab column becomes a row above the panel. */
+const NARROW = "(max-width: 639.98px)";
+
+const TOOLS: [string, string][] = [
+  ["read", "Read file contents"],
+  ["bash", "Run shell commands"],
+  ["edit", "Make exact text replacements in files"],
+  ["write", "Create or overwrite files"],
+  ["grep", "Search file contents for patterns"],
+  ["find", "Find files by glob pattern"],
+  ["ls", "List directory contents"],
+];
+const DEFAULT_TOOLS = ["read", "bash", "edit", "write"];
+
+const LEVELS: [string, string][] = [
+  ["off", "Off"],
+  ["minimal", "Minimal"],
+  ["low", "Low"],
+  ["medium", "Medium"],
+  ["high", "High"],
+  ["xhigh", "Extra high"],
+  ["max", "Max"],
+];
+const BUDGETS: [string, string][] = [
+  ["minimal", "Minimal"],
+  ["low", "Low"],
+  ["medium", "Medium"],
+  ["high", "High"],
+];
+
+const THEMES: Choice<string>[] = [
+  { value: "system", label: "System" },
+  { value: "light", label: "Light" },
+  { value: "dark", label: "Dark" },
+];
+const DELIVERY: Choice<string>[] = [
+  { value: "one-at-a-time", label: "One at a time" },
+  { value: "all", label: "All at once" },
+];
+const TRUST: Choice<string>[] = [
+  { value: "ask", label: "Ask" },
+  { value: "always", label: "Always" },
+  { value: "never", label: "Never" },
+];
 
 function getPath(doc: Settings, path: string): unknown {
   return path
@@ -64,293 +119,237 @@ function getPath(doc: Settings, path: string): unknown {
     );
 }
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
-  return (
-    // biome-ignore lint/a11y/noLabelWithoutControl: the control is passed as children
-    <label className="grid grid-cols-[180px_1fr] items-center gap-3 py-1.5 max-sm:grid-cols-1">
-      <span className="text-[13px]">
-        {label}
-        {hint ? <span className="block text-[11px] text-fg-faint">{hint}</span> : null}
-      </span>
-      <span>{children}</span>
-    </label>
-  );
-}
-
-function useSettings() {
-  const [data, setData] = useState<SettingsData | null>(null);
-  const load = useCallback(() => {
-    const cwd = activeView()?.state.cwd ?? null;
-    request<SettingsData>("get_settings", { cwd }).then(setData).catch(reportError);
-  }, []);
-  // No load on mount: SettingsDialog is always mounted, and on page load the socket is still
-  // connecting. It loads each time the dialog opens instead.
-  const patch = async (value: Settings) => {
-    await request("update_settings", { patch: value });
-    load();
-    await refreshSettings();
-  };
-  return { data, patch, load };
-}
-
+/** The global value, else the default. */
 function value(data: SettingsData, path: string): unknown {
   return getPath(data.global, path) ?? getPath(data.defaults, path);
 }
 
-function Toggle({
-  data,
-  path,
-  patch,
-}: {
-  data: SettingsData;
-  path: string;
-  patch: (v: Settings) => Promise<void>;
-}) {
-  const checked = Boolean(value(data, path));
-  const keys = path.split(".");
-  const nested = keys.reduceRight<unknown>((acc, key) => ({ [key]: acc }), !checked) as Settings;
-  return (
-    <input
-      type="checkbox"
-      checked={checked}
-      onChange={() => void patch(nested).catch(reportError)}
-    />
-  );
+function text(data: SettingsData, path: string): string {
+  const v = value(data, path);
+  return v === undefined || v === null ? "" : String(v);
 }
 
-function Select({
-  data,
-  path,
-  options,
-  patch,
-}: {
-  data: SettingsData;
-  path: string;
-  options: string[];
-  patch: (v: Settings) => Promise<void>;
-}) {
-  const current = String(value(data, path) ?? "");
-  const keys = path.split(".");
-  return (
-    <select
-      className={inputClass}
-      value={current}
-      onChange={(e) =>
-        void patch(
-          keys.reduceRight<unknown>((acc, key) => ({ [key]: acc }), e.target.value) as Settings,
-        ).catch(reportError)
-      }
-    >
-      {options.map((option) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
-      ))}
-    </select>
-  );
-}
-
-function NumberInput({
-  data,
-  path,
-  patch,
-}: {
-  data: SettingsData;
-  path: string;
-  patch: (v: Settings) => Promise<void>;
-}) {
-  const [text, setText] = useState(String(value(data, path) ?? ""));
-  const keys = path.split(".");
-  const save = () => {
-    const parsed = Number(text);
-    if (!Number.isFinite(parsed)) return;
-    void patch(keys.reduceRight<unknown>((acc, key) => ({ [key]: acc }), parsed) as Settings).catch(
-      reportError,
+function useSettings() {
+  const [data, setData] = useState<SettingsData | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  // No load on mount: SettingsDialog is always mounted, and on page load the socket is still
+  // connecting. It loads each time the dialog opens instead.
+  const load = useCallback(async () => {
+    const cwd = activeView()?.state.cwd ?? null;
+    try {
+      setData(await request<SettingsData>("get_settings", { cwd }));
+      setError(null);
+    } catch (err) {
+      setError(reasonText(err));
+    }
+  }, []);
+  // update_settings answers with the new global document, so the row shows its saved state as
+  // soon as the save returns.
+  const patch = useCallback(async (value: Settings) => {
+    const global = await request<Settings | null>("update_settings", { patch: value });
+    setData((current) =>
+      current && global && typeof global === "object" ? { ...current, global } : current,
     );
-  };
-  return (
-    <input
-      className={inputClass}
-      inputMode="numeric"
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={save}
-    />
-  );
+    void refreshSettings().catch(reportError);
+  }, []);
+  return { data, error, patch, load };
 }
 
-function TextInput({
-  data,
-  path,
-  patch,
-  placeholder,
-}: {
-  data: SettingsData;
-  path: string;
-  patch: (v: Settings) => Promise<void>;
-  placeholder?: string;
-}) {
-  const [text, setText] = useState(String(value(data, path) ?? ""));
+function General({ data, patch }: TabProps) {
   return (
-    <input
-      className={inputClass}
-      value={text}
-      placeholder={placeholder}
-      onChange={(e) => setText(e.target.value)}
-      onBlur={() => void patch({ [path]: text || null }).catch(reportError)}
-    />
-  );
-}
-
-function General({ data, patch }: { data: SettingsData; patch: (v: Settings) => Promise<void> }) {
-  return (
-    <div>
-      <Field label="Appearance">
-        <Select data={data} path="theme" options={["system", "light", "dark"]} patch={patch} />
-      </Field>
-      <Field label="Default thinking level">
-        <Select data={data} path="defaultThinkingLevel" options={LEVELS} patch={patch} />
-      </Field>
-      <Field label="Steering delivery" hint="Messages sent while the agent works">
-        <Select data={data} path="steeringMode" options={["one-at-a-time", "all"]} patch={patch} />
-      </Field>
-      <Field label="Follow-up delivery">
-        <Select data={data} path="followUpMode" options={["one-at-a-time", "all"]} patch={patch} />
-      </Field>
-      <Field label="Hide thinking blocks">
-        <Toggle data={data} path="hideThinkingBlock" patch={patch} />
-      </Field>
-      <Field label="Project trust default" hint="For projects with a .piglet folder">
-        <Select
-          data={data}
-          path="defaultProjectTrust"
-          options={["ask", "always", "never"]}
+    <>
+      <Section title="Appearance">
+        <ChoiceSetting
+          label="Theme"
+          value={text(data, "theme")}
+          choices={THEMES}
+          saveAs="theme"
           patch={patch}
         />
-      </Field>
-      <Field label="Shell path" hint="Used by the bash tool">
-        <TextInput data={data} path="shellPath" patch={patch} placeholder="/bin/bash" />
-      </Field>
-      <Field label="Session directory" hint="Leave empty for the default">
-        <TextInput
-          data={data}
-          path="sessionDir"
+        <SwitchSetting
+          label="Hide thinking blocks"
+          value={Boolean(value(data, "hideThinkingBlock"))}
+          saveAs="hideThinkingBlock"
           patch={patch}
-          placeholder={`${data.agentDir}/sessions`}
         />
-      </Field>
-      <Field label="Auto-resize images">
-        <Toggle data={data} path="images.autoResize" patch={patch} />
-      </Field>
-      <Field label="Block images">
-        <Toggle data={data} path="images.blockImages" patch={patch} />
-      </Field>
-      <p className="mt-3 text-[11px] text-fg-faint">Saved to {data.globalPath}</p>
-    </div>
+      </Section>
+      <Section title="Messages">
+        <SelectSetting
+          label="Default thinking level"
+          value={text(data, "defaultThinkingLevel")}
+          saveAs="defaultThinkingLevel"
+          patch={patch}
+        >
+          {LEVELS.map(([id, label]) => (
+            <option key={id} value={id}>
+              {label}
+            </option>
+          ))}
+        </SelectSetting>
+        <ChoiceSetting
+          label="Steering delivery"
+          hint="Messages sent while the agent works"
+          value={text(data, "steeringMode")}
+          choices={DELIVERY}
+          saveAs="steeringMode"
+          patch={patch}
+        />
+        <ChoiceSetting
+          label="Follow-up delivery"
+          value={text(data, "followUpMode")}
+          choices={DELIVERY}
+          saveAs="followUpMode"
+          patch={patch}
+        />
+      </Section>
+      <Section title="Projects">
+        <ChoiceSetting
+          label="Project trust default"
+          hint="For projects with a .piglet folder"
+          value={text(data, "defaultProjectTrust")}
+          choices={TRUST}
+          saveAs="defaultProjectTrust"
+          patch={patch}
+        />
+        <TextSetting
+          label="Session directory"
+          hint={`Leave empty to use ${data.agentDir}/sessions`}
+          placeholder="Default"
+          value={text(data, "sessionDir")}
+          saveAs="sessionDir"
+          patch={patch}
+        />
+      </Section>
+      <Section title="Shell">
+        <TextSetting
+          label="Shell path"
+          hint="Used by the bash tool"
+          placeholder="/bin/bash"
+          value={text(data, "shellPath")}
+          saveAs="shellPath"
+          patch={patch}
+        />
+      </Section>
+      <Section title="Images">
+        <SwitchSetting
+          label="Auto-resize images"
+          value={Boolean(value(data, "images.autoResize"))}
+          saveAs="images.autoResize"
+          patch={patch}
+        />
+        <SwitchSetting
+          label="Block images"
+          value={Boolean(value(data, "images.blockImages"))}
+          saveAs="images.blockImages"
+          patch={patch}
+        />
+      </Section>
+      <SavedTo path={data.globalPath} />
+    </>
   );
 }
 
-function Models({ data, patch }: { data: SettingsData; patch: (v: Settings) => Promise<void> }) {
+function SavedTo({ path }: { path: string }) {
+  return <p className="mt-7 text-[13px] text-fg-muted [overflow-wrap:anywhere]">Saved to {path}</p>;
+}
+
+function modelKey(m: ModelInfo): string {
+  return `${m.provider}/${m.id}`;
+}
+
+function Models({ data, patch }: TabProps) {
   const [models, setModels] = useState<ModelInfo[]>([]);
-  const [scoped, setScoped] = useState(((data.global.enabledModels as string[]) ?? []).join("\n"));
   const [config, setConfig] = useState<string | null>(null);
+  const [configError, setConfigError] = useState<string | null>(null);
   useEffect(() => {
     request<ModelInfo[]>("list_models", { cwd: activeView()?.state.cwd ?? null })
-      .then(setModels)
+      .then((list) => setModels(Array.isArray(list) ? list : []))
       .catch(reportError);
     request<{ text: string }>("get_models_config", {})
-      .then((r) => setConfig(r.text))
-      .catch(reportError);
+      .then((r) => setConfig(r?.text ?? ""))
+      .catch((err) => setConfigError(reasonText(err)));
   }, []);
-  const current = `${String(data.global.defaultProvider ?? "")}/${String(data.global.defaultModel ?? "")}`;
-  const budgets = (value(data, "thinkingBudgets") ?? {}) as Record<string, number>;
+  const provider = String(data.global.defaultProvider ?? "");
+  const model = String(data.global.defaultModel ?? "");
+  const current = provider && model ? `${provider}/${model}` : "";
+  const supported = models.filter((m) => m.supported);
+  const groups = new Map<string, ModelInfo[]>();
+  for (const m of supported) groups.set(m.provider, [...(groups.get(m.provider) ?? []), m]);
+  const scoped = ((data.global.enabledModels as string[] | undefined) ?? []).join("\n");
   return (
-    <div className="space-y-4">
-      <Field label="Default model">
-        <select
-          className={inputClass}
+    <>
+      <Section>
+        <SelectSetting
+          label="Default model"
           value={current}
-          onChange={(e) => {
-            const [provider, ...rest] = e.target.value.split("/");
-            void patch({ defaultProvider: provider, defaultModel: rest.join("/") }).catch(
-              reportError,
-            );
+          saveAs={(key) => {
+            if (!key) return { defaultProvider: null, defaultModel: null };
+            const [p, ...rest] = key.split("/");
+            return { defaultProvider: p, defaultModel: rest.join("/") };
           }}
+          patch={patch}
         >
-          <option value="/">(automatic)</option>
-          {models
-            .filter((m) => m.supported)
-            .map((m) => (
-              <option key={`${m.provider}/${m.id}`} value={`${m.provider}/${m.id}`}>
-                {m.provider}/{m.id}
-              </option>
-            ))}
-        </select>
-      </Field>
-      <Field
-        label="Scoped models"
-        hint={`One pattern per line (provider/id, globs, :level). Used by ${shortcutLabel("P")} cycling.`}
-      >
-        <textarea
-          className={`${inputClass} h-24 font-mono`}
+          <option value="">Automatic</option>
+          {current && !supported.some((m) => modelKey(m) === current) ? (
+            <option value={current}>{current}</option>
+          ) : null}
+          {[...groups].map(([name, list]) => (
+            <optgroup key={name} label={name}>
+              {list.map((m) => (
+                <option key={modelKey(m)} value={modelKey(m)}>
+                  {m.name ?? m.id}
+                </option>
+              ))}
+            </optgroup>
+          ))}
+        </SelectSetting>
+        <TextSetting
+          label="Scoped models"
+          hint={`One pattern per line (provider/id, globs, :level). Used by ${shortcutLabel("P")} cycling.`}
           value={scoped}
-          onChange={(e) => setScoped(e.target.value)}
-          onBlur={() => {
-            const list = scoped
+          multiline
+          saveAs={(lines) => {
+            const list = (lines ?? "")
               .split("\n")
               .map((s) => s.trim())
               .filter(Boolean);
-            void patch({ enabledModels: list.length ? list : null }).catch(reportError);
+            return { enabledModels: list.length ? list : null };
           }}
+          patch={patch}
         />
-      </Field>
-      <Field label="Thinking budgets" hint="Tokens for budget-based models">
-        <div className="grid grid-cols-4 gap-2">
-          {["minimal", "low", "medium", "high"].map((level) => (
-            <label key={level} className="text-[11px] text-fg-faint">
-              {level}
-              <input
-                className={inputClass}
-                defaultValue={budgets[level]}
-                onBlur={(e) =>
-                  void patch({ thinkingBudgets: { [level]: Number(e.target.value) } }).catch(
-                    reportError,
-                  )
-                }
-              />
-            </label>
-          ))}
-        </div>
-      </Field>
-      <div>
-        <div className="mb-1 flex items-center text-[13px]">
-          models.json{" "}
-          <span className="ml-2 text-[11px] text-fg-faint">
-            custom providers, models and overrides
-          </span>
-        </div>
-        {config !== null ? (
-          <>
-            <textarea
-              className={`${inputClass} h-48 font-mono text-[12px]`}
-              value={config}
-              onChange={(e) => setConfig(e.target.value)}
-              spellCheck={false}
-            />
-            <Button
-              className="mt-2"
-              onClick={() =>
-                request("save_models_config", { text: config })
-                  .then(() => toast("models.json saved"))
-                  .catch(reportError)
-              }
-            >
-              Save models.json
-            </Button>
-          </>
-        ) : null}
-      </div>
-    </div>
+      </Section>
+      <Section title="Thinking budgets" intro="Tokens for budget-based models">
+        {BUDGETS.map(([level, label]) => (
+          <NumberSetting
+            key={level}
+            label={label}
+            unit="tokens"
+            value={text(data, `thinkingBudgets.${level}`)}
+            saveAs={`thinkingBudgets.${level}`}
+            patch={patch}
+          />
+        ))}
+      </Section>
+      <Section title="models.json" intro="Custom providers, models and overrides">
+        {configError ? (
+          <p role="alert" className="py-2 text-[13px]">
+            Couldn't load models.json. {configError}
+          </p>
+        ) : config !== null ? (
+          <FileEditor
+            label="models.json"
+            initial={config}
+            saveLabel="Save models.json"
+            onSave={async (next) => {
+              await request("save_models_config", { text: next });
+              setConfig(next);
+            }}
+          />
+        ) : (
+          <p className="py-2 text-[13px] text-fg-muted">Loading…</p>
+        )}
+      </Section>
+    </>
   );
 }
 
@@ -372,7 +371,7 @@ function Providers({ escapeRef }: { escapeRef: EscapeRef }) {
     if (page && status && !provider) setPage(null);
   }, [page, status, provider]);
 
-  const scroller = () => root.current?.closest<HTMLElement>("[data-modal-body]");
+  const scroller = () => root.current?.closest<HTMLElement>("[data-settings-scroll]");
   const open = (id: string) => {
     scrollTop.current = scroller()?.scrollTop ?? 0;
     setSelected(id);
@@ -420,7 +419,7 @@ function Providers({ escapeRef }: { escapeRef: EscapeRef }) {
         />
       ) : null}
       <div hidden={Boolean(provider)}>
-        <p className="mb-3 text-[13px] text-fg-muted">
+        <p className="mb-4 text-[13px] text-fg-muted">
           Sign in or add API keys for model providers. Credentials saved here take priority over
           models.json and environment variables.
         </p>
@@ -438,67 +437,102 @@ function Providers({ escapeRef }: { escapeRef: EscapeRef }) {
   );
 }
 
-function Tools({ data, patch }: { data: SettingsData; patch: (v: Settings) => Promise<void> }) {
+function Tools({ data, patch }: TabProps) {
   const configured = data.global.defaultTools as string[] | undefined;
-  const enabled = new Set(
-    configured?.filter((t) => !/^[+-]/.test(t)) ?? ["read", "bash", "edit", "write"],
-  );
-  const toggle = (tool: string) => {
-    const next = new Set(enabled);
-    if (next.has(tool)) next.delete(tool);
-    else next.add(tool);
-    void patch({ defaultTools: TOOLS.filter((t) => next.has(t)) }).catch(reportError);
-  };
+  const enabled = new Set(configured?.filter((t) => !/^[+-]/.test(t)) ?? DEFAULT_TOOLS);
   return (
-    <div className="space-y-1">
-      <p className="mb-2 text-[12px] text-fg-muted">
-        Built-in tools available to the model. Project settings may add or remove tools with +name /
-        -name.
-      </p>
-      {TOOLS.map((tool) => (
-        <label key={tool} className="flex items-center gap-2 py-1 font-mono text-[13px]">
-          <input type="checkbox" checked={enabled.has(tool)} onChange={() => toggle(tool)} />
-          {tool}
-        </label>
+    <Section
+      intro={
+        <>
+          Built-in tools available to the model. Project settings may add or remove tools with{" "}
+          <code className="whitespace-nowrap">+name</code> /{" "}
+          <code className="whitespace-nowrap">-name</code>.
+        </>
+      }
+    >
+      {TOOLS.map(([tool, description]) => (
+        <SwitchSetting
+          key={tool}
+          label={<span className="font-mono">{tool}</span>}
+          hint={description}
+          value={enabled.has(tool)}
+          saveAs={(on) => ({
+            defaultTools: TOOLS.map(([t]) => t).filter((t) => (t === tool ? on : enabled.has(t))),
+          })}
+          patch={patch}
+        />
       ))}
-    </div>
+    </Section>
   );
 }
 
-function Compaction({
-  data,
-  patch,
-}: {
-  data: SettingsData;
-  patch: (v: Settings) => Promise<void>;
-}) {
+function Compaction({ data, patch }: TabProps) {
+  const compaction = Boolean(value(data, "compaction.enabled"));
+  const retry = Boolean(value(data, "retry.enabled"));
   return (
-    <div>
-      <Field label="Auto-compaction">
-        <Toggle data={data} path="compaction.enabled" patch={patch} />
-      </Field>
-      <Field label="Reserve tokens" hint="Compact when context exceeds window − reserve">
-        <NumberInput data={data} path="compaction.reserveTokens" patch={patch} />
-      </Field>
-      <Field label="Keep recent tokens">
-        <NumberInput data={data} path="compaction.keepRecentTokens" patch={patch} />
-      </Field>
-      <Field label="Skip branch summary prompt" hint="When moving in the tree">
-        <Toggle data={data} path="branchSummary.skipPrompt" patch={patch} />
-      </Field>
-      <Field label="Auto-retry">
-        <Toggle data={data} path="retry.enabled" patch={patch} />
-      </Field>
-      <Field label="Max retries">
-        <NumberInput data={data} path="retry.maxRetries" patch={patch} />
-      </Field>
-      <Field label="Base delay (ms)">
-        <NumberInput data={data} path="retry.baseDelayMs" patch={patch} />
-      </Field>
-      <Field label="Max delay (ms)">
-        <NumberInput data={data} path="retry.maxAgentDelayMs" patch={patch} />
-      </Field>
-    </div>
+    <>
+      <Section title="Compaction">
+        <SwitchSetting
+          label="Auto-compaction"
+          value={compaction}
+          saveAs="compaction.enabled"
+          patch={patch}
+        />
+        <NumberSetting
+          label="Reserve tokens"
+          hint="Compact when context exceeds window − reserve"
+          unit="tokens"
+          value={text(data, "compaction.reserveTokens")}
+          saveAs="compaction.reserveTokens"
+          patch={patch}
+          disabled={!compaction}
+        />
+        <NumberSetting
+          label="Keep recent tokens"
+          unit="tokens"
+          value={text(data, "compaction.keepRecentTokens")}
+          saveAs="compaction.keepRecentTokens"
+          patch={patch}
+          disabled={!compaction}
+        />
+      </Section>
+      <Section title="Session tree">
+        <SwitchSetting
+          label="Skip branch summary prompt"
+          hint="When moving in the tree"
+          value={Boolean(value(data, "branchSummary.skipPrompt"))}
+          saveAs="branchSummary.skipPrompt"
+          patch={patch}
+        />
+      </Section>
+      <Section title="Retry">
+        <SwitchSetting label="Auto-retry" value={retry} saveAs="retry.enabled" patch={patch} />
+        <NumberSetting
+          label="Max retries"
+          unit="retries"
+          value={text(data, "retry.maxRetries")}
+          saveAs="retry.maxRetries"
+          patch={patch}
+          disabled={!retry}
+        />
+        <NumberSetting
+          label="Base delay"
+          unit="ms"
+          value={text(data, "retry.baseDelayMs")}
+          saveAs="retry.baseDelayMs"
+          patch={patch}
+          disabled={!retry}
+        />
+        <NumberSetting
+          label="Max delay"
+          unit="ms"
+          value={text(data, "retry.maxAgentDelayMs")}
+          saveAs="retry.maxAgentDelayMs"
+          patch={patch}
+          disabled={!retry}
+        />
+      </Section>
+    </>
   );
 }
 
@@ -510,124 +544,204 @@ function Resources({ data }: { data: SettingsData }) {
     ["extension", "Extension commands"],
   ];
   return (
-    <div className="space-y-4">
-      <p className="text-[12px] text-fg-muted">
+    <>
+      <p className="mb-6 text-[13px] text-fg-muted [overflow-wrap:anywhere]">
         Skills live in {data.agentDir}/skills and .piglet/skills; prompt templates in{" "}
         {data.agentDir}/prompts and .piglet/prompts. Use /reload after editing them.
       </p>
       {groups.map(([source, title]) => {
         const items = commands.filter((c) => c.source === source);
         return (
-          <section key={source}>
-            <h3 className="mb-1 text-[12px] font-medium uppercase tracking-wide text-fg-muted">
-              {title}
-            </h3>
+          <Section key={source} title={title}>
             {items.length ? (
-              items.map((c) => (
-                <div key={c.name} className="flex gap-3 py-0.5 text-[13px]">
-                  <span className="font-mono">/{c.name}</span>
-                  <span className="truncate text-fg-faint">{c.description}</span>
-                </div>
-              ))
+              <ul>
+                {items.map((c) => (
+                  <li key={c.name} className="flex flex-col py-1.5">
+                    <span className="font-mono text-[14px] [overflow-wrap:anywhere]">
+                      /{c.name}
+                    </span>
+                    {c.description ? (
+                      <span className="text-[13px] text-fg-muted [overflow-wrap:anywhere]">
+                        {c.description}
+                      </span>
+                    ) : null}
+                  </li>
+                ))}
+              </ul>
             ) : (
-              <p className="text-[12px] text-fg-faint">None loaded for this session.</p>
+              <p className="py-1.5 text-[13px] text-fg-muted">None loaded for this session.</p>
             )}
-          </section>
+          </Section>
         );
       })}
       <PackagesSection />
-    </div>
+    </>
   );
+}
+
+interface Package {
+  source: string;
+  installed: boolean;
 }
 
 function PackagesSection() {
-  const [packages, setPackages] = useState<{ source: string; installed: boolean }[] | null>(null);
-  const [source, setSource] = useState("");
-  const load = useCallback(() => {
-    request<{ source: string; installed: boolean }[]>("list_packages", {})
-      .then(setPackages)
-      .catch(() => setPackages(null));
+  const [packages, setPackages] = useState<Package[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const load = useCallback(async () => {
+    try {
+      const list = await request<Package[]>("list_packages", {});
+      setPackages(Array.isArray(list) ? list : []);
+      setError(null);
+    } catch (err) {
+      setError(reasonText(err));
+    }
   }, []);
-  useEffect(load, [load]);
-  if (packages === null) return null;
+  useEffect(() => {
+    void load();
+  }, [load]);
   return (
-    <section>
-      <h3 className="mb-1 text-[12px] font-medium uppercase tracking-wide text-fg-muted">
-        Packages
-      </h3>
-      {packages.map((p) => (
-        <div key={p.source} className="flex items-center gap-2 py-0.5 text-[13px]">
-          <span className="min-w-0 flex-1 truncate font-mono">{p.source}</span>
-          <Button
-            variant="danger"
-            onClick={() =>
-              request("remove_package", { source: p.source }).then(load).catch(reportError)
-            }
-          >
-            Remove
-          </Button>
+    <Section title="Packages">
+      {error && packages === null ? (
+        <div role="alert" className="flex flex-wrap items-center gap-2 py-1.5 text-[13px]">
+          <span className="min-w-0 flex-1">Couldn't load packages. {error}</span>
+          <Button onClick={() => void load()}>Retry</Button>
         </div>
-      ))}
-      <form
-        className="mt-2 flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          request("install_package", { source })
-            .then(() => {
-              setSource("");
-              load();
-              toast("Package installed. Use /reload to load it.");
-            })
-            .catch(reportError);
-        }}
-      >
-        <input
-          className={inputClass}
-          placeholder="git URL or local path"
-          value={source}
-          onChange={(e) => setSource(e.target.value)}
-        />
-        <Button type="submit" disabled={!source}>
-          Install
-        </Button>
-      </form>
-    </section>
+      ) : null}
+      {packages?.length === 0 ? (
+        <p className="py-1.5 text-[13px] text-fg-muted">No packages installed.</p>
+      ) : null}
+      {packages?.map((p) =>
+        confirming === p.source ? (
+          <div key={p.source} className="py-1.5">
+            <InlineConfirm
+              question={`Remove ${p.source}?`}
+              consequence="piglet stops loading it after /reload, and a package cloned from git is deleted."
+              confirmLabel="Remove"
+              busyLabel="Removing…"
+              failure="Couldn't remove the package."
+              onConfirm={async () => {
+                await request("remove_package", { source: p.source });
+                setConfirming(null);
+                await load();
+              }}
+              onCancel={() => setConfirming(null)}
+            />
+          </div>
+        ) : (
+          <div
+            key={p.source}
+            className="flex min-h-11 items-center gap-4 py-1.5 pointer-coarse:min-h-13"
+          >
+            <span className="min-w-0 flex-1 font-mono text-[14px] [overflow-wrap:anywhere]">
+              {p.source}
+            </span>
+            <Button
+              variant="danger"
+              aria-label={`Remove ${p.source}`}
+              onClick={() => setConfirming(p.source)}
+            >
+              Remove
+            </Button>
+          </div>
+        ),
+      )}
+      <InstallPackage onInstalled={() => void load()} />
+    </Section>
   );
 }
 
-function Project({ data, reload }: { data: SettingsData; reload: () => void }) {
+function InstallPackage({ onInstalled }: { onInstalled: () => void }) {
+  const [source, setSource] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<SaveStatus>({ kind: "idle" });
+  const [done, setDone] = useState(false);
+  const submit = async () => {
+    const value = source.trim();
+    if (!value || busy) return;
+    setBusy(true);
+    setDone(false);
+    setResult({ kind: "idle" });
+    try {
+      await request("install_package", { source: value });
+      setSource("");
+      setDone(true);
+      onInstalled();
+    } catch (err) {
+      setResult({ kind: "invalid", message: `Couldn't install. ${reasonText(err)}` });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <form
+      className="flex flex-col gap-2.5 py-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        void submit();
+      }}
+    >
+      <label htmlFor="install-package" className="flex flex-col">
+        <span className="text-[14px]">Install a package</span>
+        <span className="text-[13px] text-fg-muted">A git URL or a local folder</span>
+      </label>
+      <div className="flex gap-2 max-sm:flex-col">
+        <input
+          id="install-package"
+          className={`${inputClass} font-mono`}
+          placeholder="git URL or local path"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
+          enterKeyHint="go"
+          value={source}
+          disabled={busy}
+          onChange={(event) => setSource(event.target.value)}
+        />
+        <Button type="submit" variant="primary" disabled={!source.trim() || busy}>
+          {busy ? "Installing…" : "Install"}
+        </Button>
+      </div>
+      {done ? (
+        <p role="status" className="text-[13px] text-add-fg">
+          Installed. Use /reload to load it.
+        </p>
+      ) : (
+        <StatusText status={result} />
+      )}
+    </form>
+  );
+}
+
+function Project({ data, reload }: { data: SettingsData; reload: () => Promise<void> }) {
   const cwd = activeView()?.state.cwd;
-  const [text, setText] = useState(JSON.stringify(data.project ?? {}, null, 2));
   if (!cwd)
     return (
       <p className="text-[13px] text-fg-muted">Open a session to edit its project settings.</p>
     );
-  const save = async () => {
-    const parsed = JSON.parse(text || "{}");
-    await request("set_project_settings", { cwd, settings: parsed });
-    toast("Project settings saved");
-    reload();
-  };
   return (
-    <div>
-      <p className="mb-2 text-[12px] text-fg-muted">
-        {data.projectPath} (merged over global settings; loaded only when the project is trusted)
+    <>
+      <p className="mb-1 text-[13px] text-fg-muted [overflow-wrap:anywhere]">
+        {data.projectPath} is merged over the global settings and loaded only when the project is
+        trusted.
       </p>
-      <textarea
-        className={`${inputClass} h-64 font-mono text-[12px]`}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        spellCheck={false}
+      <FileEditor
+        label="Project settings"
+        initial={JSON.stringify(data.project ?? {}, null, 2)}
+        saveLabel="Save project settings"
+        heightClass="h-64"
+        onSave={async (next) => {
+          const parsed = JSON.parse(next.trim() || "{}");
+          await request("set_project_settings", { cwd, settings: parsed });
+          await reload();
+        }}
       />
-      <Button className="mt-2" onClick={() => void save().catch(reportError)}>
-        Save project settings
-      </Button>
-    </div>
+    </>
   );
 }
 
-// Arrow keys (either axis, since the tabs stack on phones), Home and End move between tabs and
-// select them; Tab moves on to the panel.
+// Arrow keys (either axis, since the tabs form a row on phones), Home and End move between tabs
+// and select them; Tab moves on to the panel.
 const TAB_KEYS: Record<string, (index: number) => number> = {
   ArrowDown: (i) => i + 1,
   ArrowRight: (i) => i + 1,
@@ -648,55 +762,96 @@ function onTabKey(event: KeyboardEvent<HTMLButtonElement>) {
   document.getElementById(`settings-tab-${next}`)?.focus();
 }
 
+/** Room the phone tab row leaves at its right edge, where it fades out. */
+const FADE_PX = 48;
+
+/** Scrolls the phone tab row (only that row) so the selected tab is fully in view. */
+function revealTab(list: HTMLElement | null, tab: HTMLElement | null) {
+  if (!list || !tab || list.scrollWidth <= list.clientWidth) return;
+  const box = list.getBoundingClientRect();
+  const rect = tab.getBoundingClientRect();
+  if (rect.left < box.left) list.scrollLeft -= box.left - rect.left + 12;
+  else if (rect.right > box.right - FADE_PX) list.scrollLeft += rect.right - (box.right - FADE_PX);
+}
+
 export function SettingsDialog() {
   const open = useApp((s) => s.dialog === "settings");
   const tab = useApp((s) => s.settingsTab);
-  const { data, patch, load } = useSettings();
+  const narrow = useMediaQuery(NARROW);
+  const { data, error, patch, load } = useSettings();
   const escapeRef: EscapeRef = useRef(null);
+  const tablist = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (open) load();
+    if (open) void load();
   }, [open, load]);
+  // Each tab starts at its top, and on phones the tab row scrolls to show the selected tab.
+  useEffect(() => {
+    if (!open) return;
+    if (panel.current) panel.current.scrollTop = 0;
+    revealTab(tablist.current, document.getElementById(`settings-tab-${tab}`));
+  }, [open, tab]);
   return (
     <Modal
       open={open}
       onClose={ui.close}
       title="Settings"
-      width="max-w-3xl"
+      width="max-w-[800px]"
+      className="sm:h-[min(640px,80dvh)] max-sm:h-[calc(100dvh-1rem-var(--titlebar-bottom))]"
+      bodyClassName="flex overflow-hidden max-sm:flex-col"
       onEscapeKeyDown={(event) => {
+        // Esc in a field with unsaved text reverts the field; the dialog stays open.
+        const active = document.activeElement;
+        if (active instanceof HTMLElement && active.dataset.dirty === "true") {
+          event.preventDefault();
+          return;
+        }
         if (escapeRef.current?.()) event.preventDefault();
       }}
     >
-      <div className="flex gap-4 max-sm:flex-col">
-        <div
-          role="tablist"
-          aria-label="Settings sections"
-          aria-orientation="vertical"
-          className="flex w-40 shrink-0 flex-col gap-0.5 max-sm:w-full max-sm:flex-row max-sm:flex-wrap max-sm:gap-1"
-        >
-          {TABS.map(([id, label]) => (
-            <button
-              type="button"
-              key={id}
-              id={`settings-tab-${id}`}
-              role="tab"
-              aria-selected={tab === id}
-              aria-controls="settings-panel"
-              tabIndex={tab === id ? 0 : -1}
-              onClick={() => ui.open("settings", id)}
-              onKeyDown={onTabKey}
-              className={`whitespace-nowrap rounded-md px-2 py-1 text-left text-[13px] pointer-coarse:py-2 ${tab === id ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <div
-          role="tabpanel"
-          id="settings-panel"
-          aria-labelledby={`settings-tab-${tab}`}
-          className="min-w-0 flex-1"
-        >
-          {!data ? null : tab === "general" ? (
+      <div
+        ref={tablist}
+        role="tablist"
+        aria-label="Settings sections"
+        aria-orientation={narrow ? "horizontal" : "vertical"}
+        className="flex w-48 shrink-0 flex-col gap-0.5 overflow-y-auto py-4 pr-1 pl-3 max-sm:w-full max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:border-b max-sm:border-line max-sm:px-3 max-sm:py-1.5 max-sm:[mask-image:linear-gradient(to_right,#000_85%,transparent)] max-sm:[scrollbar-width:none] max-sm:after:w-12 max-sm:after:shrink-0 max-sm:after:content-['']"
+      >
+        {TABS.map(([id, label]) => (
+          <button
+            type="button"
+            key={id}
+            id={`settings-tab-${id}`}
+            role="tab"
+            aria-selected={tab === id}
+            aria-controls="settings-panel"
+            tabIndex={tab === id ? 0 : -1}
+            onClick={() => ui.open("settings", id)}
+            onKeyDown={onTabKey}
+            className={`h-9 shrink-0 whitespace-nowrap rounded-lg px-2.5 text-left text-[14px] focus-visible:outline-offset-[-2px] max-sm:h-11 max-sm:rounded-[10px] max-sm:px-3.5 ${tab === id ? "bg-muted font-medium text-fg" : "text-fg-muted hover:text-fg"}`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      <div
+        ref={panel}
+        role="tabpanel"
+        id="settings-panel"
+        aria-labelledby={`settings-tab-${tab}`}
+        data-settings-scroll
+        className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:pt-5 sm:pr-6 sm:pl-5"
+      >
+        <div className="max-w-[560px]">
+          {!data ? (
+            error ? (
+              <div role="alert" className="space-y-2 text-[13px]">
+                <p>Couldn't load settings. {error}</p>
+                <Button onClick={() => void load()}>Retry</Button>
+              </div>
+            ) : (
+              <p className="text-[13px] text-fg-muted">Loading settings…</p>
+            )
+          ) : tab === "general" ? (
             <General data={data} patch={patch} />
           ) : tab === "models" ? (
             <Models data={data} patch={patch} />

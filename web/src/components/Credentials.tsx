@@ -36,12 +36,12 @@ import {
   respondLogin,
   saveApiKey,
   startLogin,
-  toast,
   ui,
   useApp,
 } from "../state/store";
 import { Icon, Spinner } from "./Icon";
 import { Button, buttonClass, inputClass } from "./Modal";
+import { InlineConfirm, Segmented } from "./SettingsKit";
 
 /** 44px buttons, links and fields on touch screens (Apple's minimum touch target). */
 export const TOUCH_TARGETS =
@@ -98,8 +98,9 @@ export function rowStatus(p: ProviderAuth): ReactNode {
 }
 
 // The keyboard highlight shows only while the list has focus, so nothing looks stuck on touch.
+// Rows have no dividers or outline: the hover and keyboard highlight is their only edge.
 const rowClass =
-  "flex cursor-pointer items-center gap-3 px-3 py-2 text-[13px] hover:bg-hover group-focus-within:data-[selected=true]:bg-hover pointer-coarse:min-h-11";
+  "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-hover group-focus-within:data-[selected=true]:bg-hover pointer-coarse:min-h-13";
 
 const TYPE_AHEAD_MS = 700;
 
@@ -117,26 +118,23 @@ function ListGroup({
   const headingId = useId();
   if (rows.length === 0) return null;
   return (
-    <fieldset aria-labelledby={heading ? headingId : undefined} className="mb-3 min-w-0">
+    <fieldset aria-labelledby={heading ? headingId : undefined} className="mb-7 min-w-0 last:mb-0">
       {heading ? (
-        <div
-          id={headingId}
-          className="mb-1 text-[12px] font-medium uppercase tracking-wide text-fg-muted"
-        >
+        <div id={headingId} className="mb-1 text-[13px] font-semibold text-fg-muted">
           {heading}
         </div>
       ) : null}
-      <div className="divide-y divide-line overflow-hidden rounded-md border border-line">
+      <div className="-mx-2">
         {rows.map((p) => (
           <Command.Item key={p.id} value={p.id} onSelect={() => onOpen(p)} className={rowClass}>
             <span className="min-w-0 flex-1">
               <span
-                className="line-clamp-2 block font-medium [overflow-wrap:anywhere]"
+                className="line-clamp-2 block text-[14px] [overflow-wrap:anywhere]"
                 title={p.name}
               >
                 {p.name}
               </span>
-              <span className="block text-[12px]">{line2(p)}</span>
+              <span className="block text-[13px]">{line2(p)}</span>
             </span>
             <Icon name="chevronRight" size={14} className="shrink-0 text-fg-faint" />
           </Command.Item>
@@ -272,8 +270,8 @@ function KeyForm({
     }
   };
   return (
-    <form id={`key-form-${p.id}`} className="space-y-2" onSubmit={(e) => void submit(e)}>
-      <label htmlFor={inputId} tabIndex={-1} className="block font-medium outline-none">
+    <form id={`key-form-${p.id}`} className="space-y-2.5" onSubmit={(e) => void submit(e)}>
+      <label htmlFor={inputId} tabIndex={-1} className="block text-[14px] outline-none">
         {p.keyLabel}
       </label>
       <div className="flex gap-2 max-sm:flex-col">
@@ -305,7 +303,7 @@ function KeyForm({
           Saving a key signs you out of {account}.
         </p>
       ) : null}
-      <p className="text-[12px] text-fg-muted">
+      <p className="text-fg-muted">
         You can also enter <code>$ENV_VAR</code> to read a variable, or <code>!command</code> to run
         one (for example, a password manager CLI).
       </p>
@@ -328,41 +326,21 @@ export function ConfirmRemove({
   onCancel: () => void;
   onDone: () => void;
 }) {
-  const [busy, setBusy] = useState(false);
-  const questionId = useId();
-  const box = useRef<HTMLFieldSetElement>(null);
   const current = inUse(p);
   const oauth = current?.kind === "stored" && current.type === "oauth";
-  useEffect(() => box.current?.querySelector<HTMLElement>("[data-autofocus]")?.focus(), []);
-  const confirm = async () => {
-    setBusy(true);
-    try {
-      await removeCredential(p);
-      onDone();
-    } catch (error) {
-      toast(`Couldn't remove credentials for ${p.name}. ${reasonText(error)}`, "error");
-      setBusy(false);
-    }
-  };
   return (
-    <fieldset
-      ref={box}
-      aria-labelledby={questionId}
-      className="min-w-0 space-y-2 rounded-md border border-line bg-subtle p-3 text-[13px]"
-    >
-      <p id={questionId} className="font-medium">
-        {oauth ? `Sign out of ${p.name}?` : `Remove the saved ${p.name} API key?`}
-      </p>
-      <p className="text-fg-muted">{removalConsequence(p)}</p>
-      <div className="flex gap-2 max-sm:flex-col">
-        <Button variant="danger" disabled={busy} onClick={() => void confirm()}>
-          {busy ? (oauth ? "Signing out…" : "Removing…") : oauth ? "Sign out" : "Remove key"}
-        </Button>
-        <Button data-autofocus disabled={busy} onClick={onCancel}>
-          Cancel
-        </Button>
-      </div>
-    </fieldset>
+    <InlineConfirm
+      question={oauth ? `Sign out of ${p.name}?` : `Remove the saved ${p.name} API key?`}
+      consequence={removalConsequence(p)}
+      confirmLabel={oauth ? "Sign out" : "Remove key"}
+      busyLabel={oauth ? "Signing out…" : "Removing…"}
+      failure={`Couldn't remove credentials for ${p.name}.`}
+      onConfirm={async () => {
+        await removeCredential(p);
+        onDone();
+      }}
+      onCancel={onCancel}
+    />
   );
 }
 
@@ -397,10 +375,7 @@ function SignInFlow({
           {login.status === "cancelled" ? "Sign-in was cancelled" : "Sign-in didn't finish"}
         </p>
         {login.status === "error" && login.message ? (
-          <div
-            role="alert"
-            className="rounded-md border border-danger/40 p-3 [overflow-wrap:anywhere]"
-          >
+          <div role="alert" className="rounded-[10px] bg-del-bg p-3.5 [overflow-wrap:anywhere]">
             {login.message}
           </div>
         ) : null}
@@ -557,22 +532,16 @@ function AccountLinks({
   current: string;
 }) {
   const others = (p.login?.accounts ?? []).filter((a) => a.id !== current);
-  const link = "text-left text-accent underline pointer-coarse:min-h-11";
   return (
-    <div className="flex flex-col items-start gap-1">
+    <div className="flex flex-col items-start gap-2">
       {others.map((account) => (
-        <button
-          key={account.id}
-          type="button"
-          className={link}
-          onClick={() => void startLogin(p, account.id)}
-        >
+        <Button key={account.id} onClick={() => void startLogin(p, account.id)}>
           Use {account.label} instead
-        </button>
+        </Button>
       ))}
-      <button type="button" className={link} onClick={() => void startLogin(p, NEW_ACCOUNT)}>
+      <Button onClick={() => void startLogin(p, NEW_ACCOUNT)}>
         Use another {login.account} account
-      </button>
+      </Button>
     </div>
   );
 }
@@ -581,7 +550,7 @@ function StepNumber({ n }: { n: number }) {
   return (
     <span
       aria-hidden="true"
-      className="flex size-5 shrink-0 items-center justify-center rounded-full border border-line text-[11px] text-fg-muted"
+      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[13px] font-medium text-fg-muted"
     >
       {n}
     </span>
@@ -589,6 +558,14 @@ function StepNumber({ n }: { n: number }) {
 }
 
 type Mode = "overview" | "key" | "confirm";
+
+/** Which connection method a provider with both (an account sign-in and an API key) shows. */
+type Method = "account" | "key";
+
+function initialMethod(p: ProviderAuth): Method {
+  const current = inUse(p);
+  return current?.kind === "stored" && current.type === "api_key" ? "key" : "account";
+}
 
 /**
  * One provider's credentials: status, sources and every action, including the sign-in flow.
@@ -619,6 +596,7 @@ export function ProviderPage({
   const coarse = useMediaQuery(COARSE_POINTER);
   const keyOnly = !configured(p) && p.keyLabel !== null && p.login === null;
   const [mode, setMode] = useState<Mode>(startWithKey ? "key" : "overview");
+  const [method, setMethod] = useState<Method>(() => initialMethod(p));
   const [done, setDone] = useState<"key" | "signin" | null>(null);
   const root = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
@@ -711,7 +689,15 @@ export function ProviderPage({
   } else if (mode === "confirm") {
     body = <ConfirmRemove p={p} onCancel={backToOverview} onDone={backToOverview} />;
   } else {
-    body = <Actions p={p} onKey={() => setMode("key")} onRemove={() => setMode("confirm")} />;
+    body = (
+      <Actions
+        p={p}
+        method={method}
+        onMethod={setMethod}
+        onKey={() => setMode("key")}
+        onRemove={() => setMode("confirm")}
+      />
+    );
   }
 
   const notes: ReactNode[] = [];
@@ -744,7 +730,7 @@ export function ProviderPage({
         variant="ghost"
         aria-label={backLabel}
         onClick={signingIn ? exitSignIn : onBack}
-        className="-ml-2 inline-flex items-center gap-1 text-accent pointer-coarse:min-h-11"
+        className="-ml-2.5 gap-1 px-2.5 text-fg-muted hover:text-fg"
       >
         <Icon name="chevronLeft" size={14} /> Back
       </Button>
@@ -754,11 +740,11 @@ export function ProviderPage({
             id={headingId}
             ref={heading}
             tabIndex={-1}
-            className="text-[15px] font-semibold outline-none [overflow-wrap:anywhere]"
+            className="text-[14px] font-semibold outline-none [overflow-wrap:anywhere]"
           >
             {p.name}
           </h3>
-          {showId ? <span className="font-mono text-[11px] text-fg-muted">{p.id}</span> : null}
+          {showId ? <span className="font-mono text-[13px] text-fg-muted">{p.id}</span> : null}
         </div>
         <div aria-live="polite" className="space-y-1">
           {done === "signin" ? (
@@ -786,18 +772,12 @@ function SourceDetails({ p, source }: { p: ProviderAuth; source: CredentialSourc
   const shadowed = shadowedText(p);
   return (
     <>
-      <p className="text-fg-muted">
-        {explanation(source)}{" "}
-        {source.kind === "models.json" ? (
-          <button
-            type="button"
-            className="text-accent underline pointer-coarse:min-h-11"
-            onClick={() => ui.open("settings", "models")}
-          >
-            Edit models.json
-          </button>
-        ) : null}
-      </p>
+      <p className="text-fg-muted">{explanation(source)}</p>
+      {source.kind === "models.json" ? (
+        <Button className="mt-1" onClick={() => ui.open("settings", "models")}>
+          Edit models.json
+        </Button>
+      ) : null}
       {shadowed ? <p className="text-fg-muted">{shadowed}</p> : null}
       {p.keyLabel === null && p.login === null ? (
         <p className="text-fg-muted">piglet can't sign in to {p.name}.</p>
@@ -808,10 +788,14 @@ function SourceDetails({ p, source }: { p: ProviderAuth; source: CredentialSourc
 
 function Actions({
   p,
+  method,
+  onMethod,
   onKey,
   onRemove,
 }: {
   p: ProviderAuth;
+  method: Method;
+  onMethod: (method: Method) => void;
   onKey: () => void;
   onRemove: () => void;
 }) {
@@ -832,11 +816,12 @@ function Actions({
         {label}
       </Button>
     ) : null;
-  const addKey = p.keyLabel ? (
-    <Button key="add" aria-label={`Add API key for ${p.name}`} onClick={onKey}>
-      Add API key
-    </Button>
-  ) : null;
+  const addKey = (variant: "default" | "primary" = "default") =>
+    p.keyLabel ? (
+      <Button key="add" variant={variant} aria-label={`Add API key for ${p.name}`} onClick={onKey}>
+        Add API key
+      </Button>
+    ) : null;
   // The first button of the row takes focus when the overview appears.
   const row = (...buttons: (ReactElement | null)[]) => {
     const present = buttons.filter((b): b is ReactElement => b !== null);
@@ -850,19 +835,10 @@ function Actions({
       </div>
     );
   };
-  const link = (label: string, onClick: () => void) => (
-    <button
-      type="button"
-      className="text-accent underline pointer-coarse:min-h-11"
-      onClick={onClick}
-    >
-      {label}
-    </button>
-  );
 
-  if (!current) return row(account ? signIn(`Sign in with ${account}`) : null, addKey);
-  if (current.kind !== "stored")
-    return row(account ? signIn(`Sign in with ${account}`) : null, addKey);
+  // Nothing saved in piglet yet: the two ways to connect are simply two buttons.
+  if (current?.kind !== "stored")
+    return row(account ? signIn(`Sign in with ${account}`) : null, addKey());
 
   const removeLabel = current.type === "oauth" ? "Sign out" : "Remove key";
   const remove = (
@@ -877,15 +853,6 @@ function Actions({
       {removeLabel}
     </Button>
   );
-  if (current.type === "oauth") {
-    if (current.problem) return row(account ? signIn("Sign in again") : null, remove);
-    return (
-      <div className="space-y-2">
-        {row(remove)}
-        {p.keyLabel ? link("Use an API key instead", onKey) : null}
-      </div>
-    );
-  }
   const replace = p.keyLabel ? (
     <Button
       key="replace"
@@ -896,11 +863,36 @@ function Actions({
       Replace key
     </Button>
   ) : null;
-  if (current.problem) return row(replace, remove);
+  const signedIn = current.type === "oauth";
+  const accountActions = signedIn
+    ? current.problem
+      ? row(account ? signIn("Sign in again") : null, remove)
+      : row(remove)
+    : row(account ? signIn(`Sign in with ${account}`) : null);
+  const keyActions = signedIn ? row(addKey("primary")) : row(replace, remove);
+  if (!account || !p.keyLabel) return signedIn ? accountActions : keyActions;
+
+  // Both methods, and one is saved: a segmented control switches between them. Each side
+  // shows its own actions; switching only changes the view, nothing is saved until a button.
   return (
-    <div className="space-y-2">
-      {row(replace, remove)}
-      {account ? link(`Sign in with ${account} instead`, () => void startLogin(p)) : null}
+    <div className="space-y-3">
+      <Segmented
+        label="Connection method"
+        choices={[
+          { value: "account", label: `${account} account` },
+          { value: "key", label: "API key" },
+        ]}
+        value={method}
+        onChange={onMethod}
+        className="max-sm:flex max-sm:w-full"
+      />
+      {method === "account" ? accountActions : keyActions}
+      {method === "account" && !signedIn ? (
+        <p className="text-fg-muted">Signing in replaces your saved API key.</p>
+      ) : null}
+      {method === "key" && signedIn ? (
+        <p className="text-fg-muted">Saving a key signs you out of {account}.</p>
+      ) : null}
     </div>
   );
 }
@@ -931,18 +923,14 @@ export function RefreshFailed({ error }: { error: string | null }) {
 export function ModelsWarning({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null;
   return (
-    <div className="mb-3 flex gap-2 rounded-md border border-line bg-subtle p-3 text-[13px]">
+    <div className="mb-4 flex gap-2 rounded-[10px] bg-warning/15 p-3.5 text-[13px]">
       <Icon name="alert" size={14} className="mt-0.5 shrink-0 text-warning" />
-      <p>
-        Some providers may be missing because models.json has a problem: {warnings[0]}{" "}
-        <button
-          type="button"
-          className="text-accent underline pointer-coarse:min-h-11"
-          onClick={() => ui.open("settings", "models")}
-        >
-          Edit models.json
-        </button>
-      </p>
+      <div className="min-w-0 space-y-2.5">
+        <p className="[overflow-wrap:anywhere]">
+          Some providers may be missing because models.json has a problem: {warnings[0]}
+        </p>
+        <Button onClick={() => ui.open("settings", "models")}>Edit models.json</Button>
+      </div>
     </div>
   );
 }
