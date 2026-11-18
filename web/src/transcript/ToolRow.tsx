@@ -138,7 +138,7 @@ export function ToolRow({
       <button
         type="button"
         onClick={() => setOpen(!expanded)}
-        className="flex w-full min-w-0 items-center gap-2 rounded px-1 py-0.5 text-left font-mono text-[12.5px] hover:bg-hover pointer-coarse:min-h-11"
+        className="flex w-full min-w-0 items-center gap-2 rounded px-1 py-0.5 text-left font-mono text-[12.5px] hover:bg-hover active:bg-hover pointer-coarse:min-h-10"
         aria-expanded={expanded}
       >
         <Icon

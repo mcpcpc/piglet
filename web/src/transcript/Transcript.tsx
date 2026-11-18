@@ -64,6 +64,8 @@ interface Context {
   actions: TranscriptActions;
   /** The branch's last message, the only one a Retry can apply to. */
   lastMessage?: AgentMessage;
+  /** Assistant turns that open with a tool call right after a turn that ended with one. */
+  continuesRun: Set<AgentMessage>;
 }
 
 function Images({ content }: { content: UserMessage["content"] }) {
@@ -184,11 +186,11 @@ function Thinking({ text, streaming }: { text: string; streaming: boolean }) {
   const [open, setOpen] = useState(false);
   if (!text.trim()) return null;
   return (
-    <div className="my-1">
+    <div className="my-1 pointer-coarse:my-0">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-[12px] italic text-fg-faint hover:text-fg-muted pointer-coarse:min-h-11"
+        className="flex items-center gap-1 text-[12px] italic text-fg-faint hover:text-fg-muted pointer-coarse:min-h-10"
         aria-expanded={open}
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
@@ -226,7 +228,9 @@ function AssistantTurn({
   streaming: boolean;
 }) {
   return (
-    <div className="mt-3 space-y-1">
+    <div
+      className={`${ctx.continuesRun.has(message) ? "mt-1 pointer-coarse:mt-0" : "mt-3"} space-y-1 pointer-coarse:space-y-0`}
+    >
       {message.content.map((block, index) => {
         const blockKey = `${block.type}-${index}`;
         const last = index === message.content.length - 1;
@@ -365,12 +369,12 @@ function BashTurn({
   const output = message?.output ?? live?.output ?? "";
   const failed = message && (message.cancelled || (message.exitCode ?? 0) !== 0);
   return (
-    <div className="mt-4">
+    <div className="mt-4 pointer-coarse:mt-2">
       <button
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 font-mono text-[12.5px] text-fg-muted hover:text-fg pointer-coarse:min-h-11"
+        className="flex w-full items-center gap-2 font-mono text-[12.5px] text-fg-muted hover:text-fg pointer-coarse:min-h-10"
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
         <span className="text-fg-faint">$</span>
@@ -394,11 +398,11 @@ function BashTurn({
 function Divider({ title, detail }: { title: string; detail?: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="my-6">
+    <div className="my-6 pointer-coarse:my-3">
       <button
         type="button"
         onClick={() => detail && setOpen(!open)}
-        className={`flex w-full items-center gap-3 text-[11px] uppercase tracking-wide text-fg-faint ${detail ? "pointer-coarse:min-h-11" : ""}`}
+        className={`flex w-full items-center gap-3 text-[11px] uppercase tracking-wide text-fg-faint ${detail ? "pointer-coarse:min-h-10" : ""}`}
       >
         <span className="h-px flex-1 bg-line" />
         <span className="flex items-center gap-1">
@@ -414,6 +418,44 @@ function Divider({ title, detail }: { title: string; detail?: string }) {
       ) : null}
     </div>
   );
+}
+
+/** Whether a turn starts and ends with a tool row, counting only blocks that render. */
+function toolEdges(message: AssistantMessage, showThinking: boolean) {
+  const visible = message.content.filter(
+    (b) =>
+      b.type === "toolCall" ||
+      (b.type === "text" && b.text) ||
+      (b.type === "thinking" && showThinking && b.thinking.trim()),
+  );
+  const failed = message.stopReason === "error" || message.stopReason === "aborted";
+  return {
+    startsWithTool: visible[0]?.type === "toolCall",
+    endsWithTool: !failed && visible.at(-1)?.type === "toolCall",
+  };
+}
+
+/**
+ * Turns whose tool rows continue the previous turn's, so a run of calls split across replies
+ * keeps one rhythm. Tool results and hidden messages render nothing, so they don't break a run.
+ */
+export function toolRunContinuations(
+  messages: AgentMessage[],
+  showThinking: boolean,
+): Set<AgentMessage> {
+  const continues = new Set<AgentMessage>();
+  let previousEndsWithTool = false;
+  for (const message of messages) {
+    if (message.role === "toolResult" || (message.role === "custom" && !message.display)) continue;
+    if (message.role !== "assistant") {
+      previousEndsWithTool = false;
+      continue;
+    }
+    const { startsWithTool, endsWithTool } = toolEdges(message, showThinking);
+    if (previousEndsWithTool && startsWithTool) continues.add(message);
+    previousEndsWithTool = endsWithTool;
+  }
+  return continues;
 }
 
 function renderMessage(
@@ -465,6 +507,10 @@ export const Transcript = memo(function Transcript(props: TranscriptProps) {
     cwd,
     actions: props.actions ?? {},
     lastMessage: allMessages.at(-1),
+    continuesRun: toolRunContinuations(
+      streaming ? [...allMessages, streaming] : allMessages,
+      props.showThinking ?? true,
+    ),
   };
   const working = workingLabel({
     isStreaming: ctx.isStreaming,
