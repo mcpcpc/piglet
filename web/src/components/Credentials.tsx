@@ -100,7 +100,7 @@ export function rowStatus(p: ProviderAuth): ReactNode {
 // The keyboard highlight shows only while the list has focus, so nothing looks stuck on touch.
 // Rows have no dividers or outline: the hover and keyboard highlight is their only edge.
 const rowClass =
-  "flex min-h-11 cursor-pointer items-center gap-3 rounded-lg px-2 py-1.5 hover:bg-hover group-focus-within:data-[selected=true]:bg-hover pointer-coarse:min-h-13";
+  "flex cursor-pointer items-center gap-3 rounded-md px-2 py-2 hover:bg-hover group-focus-within:data-[selected=true]:bg-hover pointer-coarse:min-h-11";
 
 const TYPE_AHEAD_MS = 700;
 
@@ -118,9 +118,9 @@ function ListGroup({
   const headingId = useId();
   if (rows.length === 0) return null;
   return (
-    <fieldset aria-labelledby={heading ? headingId : undefined} className="mb-7 min-w-0 last:mb-0">
+    <fieldset aria-labelledby={heading ? headingId : undefined} className="mb-5 min-w-0 last:mb-0">
       {heading ? (
-        <div id={headingId} className="mb-1 text-[13px] font-semibold text-fg-muted">
+        <div id={headingId} className="mb-1 text-[12px] font-semibold text-fg-muted">
           {heading}
         </div>
       ) : null}
@@ -129,12 +129,12 @@ function ListGroup({
           <Command.Item key={p.id} value={p.id} onSelect={() => onOpen(p)} className={rowClass}>
             <span className="min-w-0 flex-1">
               <span
-                className="line-clamp-2 block text-[14px] [overflow-wrap:anywhere]"
+                className="line-clamp-2 block font-medium [overflow-wrap:anywhere]"
                 title={p.name}
               >
                 {p.name}
               </span>
-              <span className="block text-[13px]">{line2(p)}</span>
+              <span className="block text-[12px]">{line2(p)}</span>
             </span>
             <Icon name="chevronRight" size={14} className="shrink-0 text-fg-faint" />
           </Command.Item>
@@ -270,8 +270,8 @@ function KeyForm({
     }
   };
   return (
-    <form id={`key-form-${p.id}`} className="space-y-2.5" onSubmit={(e) => void submit(e)}>
-      <label htmlFor={inputId} tabIndex={-1} className="block text-[14px] outline-none">
+    <form id={`key-form-${p.id}`} className="space-y-2" onSubmit={(e) => void submit(e)}>
+      <label htmlFor={inputId} tabIndex={-1} className="block font-medium outline-none">
         {p.keyLabel}
       </label>
       <div className="flex gap-2 max-sm:flex-col">
@@ -375,7 +375,7 @@ function SignInFlow({
           {login.status === "cancelled" ? "Sign-in was cancelled" : "Sign-in didn't finish"}
         </p>
         {login.status === "error" && login.message ? (
-          <div role="alert" className="rounded-[10px] bg-del-bg p-3.5 [overflow-wrap:anywhere]">
+          <div role="alert" className="rounded-md bg-del-bg p-3 [overflow-wrap:anywhere]">
             {login.message}
           </div>
         ) : null}
@@ -550,7 +550,7 @@ function StepNumber({ n }: { n: number }) {
   return (
     <span
       aria-hidden="true"
-      className="flex size-6 shrink-0 items-center justify-center rounded-full bg-muted text-[13px] font-medium text-fg-muted"
+      className="flex size-5 shrink-0 items-center justify-center rounded-full bg-muted text-[11px] text-fg-muted"
     >
       {n}
     </span>
@@ -730,7 +730,7 @@ export function ProviderPage({
         variant="ghost"
         aria-label={backLabel}
         onClick={signingIn ? exitSignIn : onBack}
-        className="-ml-2.5 gap-1 px-2.5 text-fg-muted hover:text-fg"
+        className="-ml-3 gap-1 text-fg-muted hover:text-fg"
       >
         <Icon name="chevronLeft" size={14} /> Back
       </Button>
@@ -744,7 +744,7 @@ export function ProviderPage({
           >
             {p.name}
           </h3>
-          {showId ? <span className="font-mono text-[13px] text-fg-muted">{p.id}</span> : null}
+          {showId ? <span className="font-mono text-[11px] text-fg-muted">{p.id}</span> : null}
         </div>
         <div aria-live="polite" className="space-y-1">
           {done === "signin" ? (
@@ -923,9 +923,9 @@ export function RefreshFailed({ error }: { error: string | null }) {
 export function ModelsWarning({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null;
   return (
-    <div className="mb-4 flex gap-2 rounded-[10px] bg-warning/15 p-3.5 text-[13px]">
+    <div className="mb-3 flex gap-2 rounded-md bg-warning/15 p-3 text-[13px]">
       <Icon name="alert" size={14} className="mt-0.5 shrink-0 text-warning" />
-      <div className="min-w-0 space-y-2.5">
+      <div className="min-w-0 space-y-2">
         <p className="[overflow-wrap:anywhere]">
           Some providers may be missing because models.json has a problem: {warnings[0]}
         </p>

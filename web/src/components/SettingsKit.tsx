@@ -127,7 +127,7 @@ export function StatusText({ status, id }: { status: SaveStatus; id?: string }) 
       </span>
     );
   return (
-    <span id={id} role="status" className="text-[13px] [&:not(:empty)]:mt-0.5">
+    <span id={id} role="status" className="text-[11px] [&:not(:empty)]:mt-0.5">
       {content}
     </span>
   );
@@ -148,14 +148,14 @@ export function Section({
 }) {
   const headingId = useId();
   return (
-    <section aria-labelledby={title ? headingId : undefined} className="mt-7 first:mt-0">
+    <section aria-labelledby={title ? headingId : undefined} className="mt-6 first:mt-0">
       {title ? (
-        <h3 id={headingId} className="text-[13px] font-semibold text-fg-muted">
+        <h3 id={headingId} className="text-[12px] font-semibold text-fg-muted">
           {title}
         </h3>
       ) : null}
       {intro ? (
-        <p className="mt-0.5 mb-1 text-[13px] text-fg-muted [overflow-wrap:anywhere]">{intro}</p>
+        <p className="mt-0.5 mb-1 text-[12px] text-fg-muted [overflow-wrap:anywhere]">{intro}</p>
       ) : null}
       {children}
     </section>
@@ -181,12 +181,12 @@ export type RowLayout = "inline" | "stacked" | "wide";
 
 const ROW_LAYOUT: Record<RowLayout, { row: string; control: string }> = {
   inline: {
-    row: "flex min-h-11 items-center gap-4 py-1.5 pointer-coarse:min-h-13",
+    row: "flex min-h-[42px] items-center gap-4 py-1.5 pointer-coarse:min-h-11",
     control: "shrink-0",
   },
-  stacked: { row: "flex flex-col gap-2.5 py-2", control: "min-w-0" },
+  stacked: { row: "flex flex-col gap-1.5 py-1.5", control: "min-w-0" },
   wide: {
-    row: "flex min-h-11 items-center gap-4 py-1.5 pointer-coarse:min-h-13 max-sm:flex-col max-sm:items-stretch max-sm:gap-2.5 max-sm:py-2",
+    row: "flex min-h-[42px] items-center gap-4 py-1.5 pointer-coarse:min-h-11 max-sm:flex-col max-sm:items-stretch max-sm:gap-1.5",
     control: "shrink-0 max-sm:w-full",
   },
 };
@@ -217,11 +217,11 @@ export function Row({
   const classes = ROW_LAYOUT[layout];
   const text = (
     <>
-      <span id={ids.label} className={`text-[14px] ${disabled ? "text-fg-muted" : "text-fg"}`}>
+      <span id={ids.label} className={`text-[13px] ${disabled ? "text-fg-muted" : "text-fg"}`}>
         {label}
       </span>
       {hint ? (
-        <span id={ids.hint} className="text-[13px] text-fg-muted [overflow-wrap:anywhere]">
+        <span id={ids.hint} className="text-[11px] text-fg-muted [overflow-wrap:anywhere]">
           {hint}
         </span>
       ) : null}
@@ -272,11 +272,11 @@ export function Switch({
       aria-describedby={describedBy}
       disabled={disabled}
       onClick={() => onChange(!checked)}
-      className={`flex h-6 w-10 shrink-0 items-center rounded-full p-[3px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${checked ? "bg-accent" : "shadow-[inset_0_0_0_1.5px_var(--fg-muted)]"}`}
+      className={`flex h-[18px] w-8 shrink-0 items-center rounded-full p-[2px] transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${checked ? "bg-accent" : "shadow-[inset_0_0_0_1.5px_var(--fg-muted)]"}`}
     >
       <span
         aria-hidden="true"
-        className={`size-[18px] rounded-full transition-transform ${checked ? "translate-x-4 bg-accent-fg" : "bg-fg-muted"}`}
+        className={`size-[14px] rounded-full transition-transform ${checked ? "translate-x-3.5 bg-accent-fg" : "bg-fg-muted"}`}
       />
     </button>
   );
@@ -318,14 +318,14 @@ export function Segmented<T extends string>({
       aria-label={label}
       aria-describedby={describedBy}
       disabled={disabled}
-      className={`inline-flex h-8 min-w-0 gap-0.5 rounded-[9px] bg-muted p-0.5 pointer-coarse:h-11 ${className}`}
+      className={`inline-flex h-[30px] min-w-0 gap-0.5 rounded-md bg-muted p-0.5 pointer-coarse:h-9 ${className}`}
     >
       {choices.map((choice) => {
         const selected = choice.value === value;
         return (
           <label
             key={choice.value}
-            className={`flex flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded-[7px] px-3 text-[13px] has-[:disabled]:cursor-not-allowed has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-solid ${selected ? "bg-raised font-semibold text-fg shadow-raised" : "font-medium text-fg-muted hover:text-fg"}`}
+            className={`flex flex-1 cursor-pointer items-center justify-center whitespace-nowrap rounded px-2.5 text-[13px] has-[:disabled]:cursor-not-allowed has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-accent has-[:focus-visible]:outline-solid ${selected ? "bg-raised font-medium text-fg shadow-raised" : "text-fg-muted hover:text-fg"}`}
           >
             <input
               type="radio"
@@ -373,14 +373,14 @@ export function ValueSelect({
         aria-labelledby={labelledBy}
         aria-describedby={describedBy}
         onChange={(event) => onChange(event.target.value)}
-        className="h-8 max-w-64 cursor-pointer appearance-none truncate rounded-lg bg-transparent py-0 pr-7 pl-2.5 text-right text-[14px] text-fg-muted [text-align-last:right] hover:bg-hover disabled:cursor-not-allowed pointer-coarse:h-11 pointer-coarse:text-base max-sm:max-w-44"
+        className="h-[30px] max-w-64 cursor-pointer appearance-none truncate rounded-md bg-transparent py-0 pr-6 pl-2 text-right text-[13px] text-fg-muted [text-align-last:right] hover:bg-hover disabled:cursor-not-allowed pointer-coarse:h-9 pointer-coarse:text-base max-sm:max-w-44"
       >
         {children}
       </select>
       <Icon
         name="chevronUpDown"
-        size={14}
-        className="pointer-events-none absolute right-2 text-fg-muted"
+        size={12}
+        className="pointer-events-none absolute right-1.5 text-fg-muted"
       />
     </span>
   );
@@ -652,10 +652,10 @@ export function NumberSetting({
           invalid={status.kind === "invalid"}
           labelledBy={ids.label}
           describedBy={describedBy}
-          className={`${fieldClass} w-28 font-mono`}
+          className={`${fieldClass} w-24 font-mono`}
         />
         {/* A fixed width, so fields with different units line up. */}
-        <span id={unitId} className="min-w-12 text-[13px] text-fg-muted">
+        <span id={unitId} className="min-w-10 text-[12px] text-fg-muted">
           {unit}
         </span>
       </span>
@@ -693,11 +693,11 @@ export function FileEditor({
     setBusy(false);
   };
   return (
-    <div className="flex flex-col gap-2.5 py-2">
+    <div className="flex flex-col gap-2 py-1.5">
       <textarea
         id={id}
         aria-label={label}
-        className={`${inputClass} ${heightClass} font-mono text-[13px]`}
+        className={`${inputClass} ${heightClass} font-mono text-[12px]`}
         value={text}
         spellCheck={false}
         autoCapitalize="none"
@@ -721,7 +721,7 @@ export function FileEditor({
           Revert
         </Button>
         {dirty && status.kind === "idle" ? (
-          <span className="ml-1 text-[13px] text-fg-muted">Unsaved changes</span>
+          <span className="ml-1 text-[12px] text-fg-muted">Unsaved changes</span>
         ) : null}
         <span className="ml-1">
           <StatusText status={status} />
@@ -773,7 +773,7 @@ export function InlineConfirm({
     <fieldset
       ref={box}
       aria-labelledby={questionId}
-      className="min-w-0 space-y-3 rounded-[10px] bg-del-bg p-3.5 text-[13px] text-fg"
+      className="min-w-0 space-y-2 rounded-md bg-del-bg p-3 text-[13px] text-fg"
     >
       <p id={questionId} className="font-semibold [overflow-wrap:anywhere]">
         {question}

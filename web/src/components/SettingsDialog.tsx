@@ -250,7 +250,7 @@ function General({ data, patch }: TabProps) {
 }
 
 function SavedTo({ path }: { path: string }) {
-  return <p className="mt-7 text-[13px] text-fg-muted [overflow-wrap:anywhere]">Saved to {path}</p>;
+  return <p className="mt-6 text-[11px] text-fg-muted [overflow-wrap:anywhere]">Saved to {path}</p>;
 }
 
 function modelKey(m: ModelInfo): string {
@@ -419,7 +419,7 @@ function Providers({ escapeRef }: { escapeRef: EscapeRef }) {
         />
       ) : null}
       <div hidden={Boolean(provider)}>
-        <p className="mb-4 text-[13px] text-fg-muted">
+        <p className="mb-3 text-[13px] text-fg-muted">
           Sign in or add API keys for model providers. Credentials saved here take priority over
           models.json and environment variables.
         </p>
@@ -545,7 +545,7 @@ function Resources({ data }: { data: SettingsData }) {
   ];
   return (
     <>
-      <p className="mb-6 text-[13px] text-fg-muted [overflow-wrap:anywhere]">
+      <p className="mb-5 text-[12px] text-fg-muted [overflow-wrap:anywhere]">
         Skills live in {data.agentDir}/skills and .piglet/skills; prompt templates in{" "}
         {data.agentDir}/prompts and .piglet/prompts. Use /reload after editing them.
       </p>
@@ -556,8 +556,8 @@ function Resources({ data }: { data: SettingsData }) {
             {items.length ? (
               <ul>
                 {items.map((c) => (
-                  <li key={c.name} className="flex flex-col py-1.5">
-                    <span className="font-mono text-[14px] [overflow-wrap:anywhere]">
+                  <li key={c.name} className="flex flex-col py-1">
+                    <span className="font-mono text-[13px] [overflow-wrap:anywhere]">
                       /{c.name}
                     </span>
                     {c.description ? (
@@ -569,7 +569,7 @@ function Resources({ data }: { data: SettingsData }) {
                 ))}
               </ul>
             ) : (
-              <p className="py-1.5 text-[13px] text-fg-muted">None loaded for this session.</p>
+              <p className="py-1 text-[12px] text-fg-muted">None loaded for this session.</p>
             )}
           </Section>
         );
@@ -609,7 +609,7 @@ function PackagesSection() {
         </div>
       ) : null}
       {packages?.length === 0 ? (
-        <p className="py-1.5 text-[13px] text-fg-muted">No packages installed.</p>
+        <p className="py-1 text-[12px] text-fg-muted">No packages installed.</p>
       ) : null}
       {packages?.map((p) =>
         confirming === p.source ? (
@@ -629,11 +629,8 @@ function PackagesSection() {
             />
           </div>
         ) : (
-          <div
-            key={p.source}
-            className="flex min-h-11 items-center gap-4 py-1.5 pointer-coarse:min-h-13"
-          >
-            <span className="min-w-0 flex-1 font-mono text-[14px] [overflow-wrap:anywhere]">
+          <div key={p.source} className="flex items-center gap-4 py-1 pointer-coarse:min-h-11">
+            <span className="min-w-0 flex-1 font-mono text-[13px] [overflow-wrap:anywhere]">
               {p.source}
             </span>
             <Button
@@ -675,15 +672,15 @@ function InstallPackage({ onInstalled }: { onInstalled: () => void }) {
   };
   return (
     <form
-      className="flex flex-col gap-2.5 py-2"
+      className="flex flex-col gap-1.5 py-1.5"
       onSubmit={(event) => {
         event.preventDefault();
         void submit();
       }}
     >
       <label htmlFor="install-package" className="flex flex-col">
-        <span className="text-[14px]">Install a package</span>
-        <span className="text-[13px] text-fg-muted">A git URL or a local folder</span>
+        <span className="text-[13px]">Install a package</span>
+        <span className="text-[11px] text-fg-muted">A git URL or a local folder</span>
       </label>
       <div className="flex gap-2 max-sm:flex-col">
         <input
@@ -703,7 +700,7 @@ function InstallPackage({ onInstalled }: { onInstalled: () => void }) {
         </Button>
       </div>
       {done ? (
-        <p role="status" className="text-[13px] text-add-fg">
+        <p role="status" className="text-[11px] text-add-fg">
           Installed. Use /reload to load it.
         </p>
       ) : (
@@ -721,7 +718,7 @@ function Project({ data, reload }: { data: SettingsData; reload: () => Promise<v
     );
   return (
     <>
-      <p className="mb-1 text-[13px] text-fg-muted [overflow-wrap:anywhere]">
+      <p className="mb-1 text-[12px] text-fg-muted [overflow-wrap:anywhere]">
         {data.projectPath} is merged over the global settings and loaded only when the project is
         trusted.
       </p>
@@ -796,7 +793,7 @@ export function SettingsDialog() {
       open={open}
       onClose={ui.close}
       title="Settings"
-      width="max-w-[800px]"
+      width="max-w-3xl"
       className="sm:h-[min(640px,80dvh)] max-sm:h-[calc(100dvh-1rem-var(--titlebar-bottom))]"
       bodyClassName="flex overflow-hidden max-sm:flex-col"
       onEscapeKeyDown={(event) => {
@@ -814,7 +811,7 @@ export function SettingsDialog() {
         role="tablist"
         aria-label="Settings sections"
         aria-orientation={narrow ? "horizontal" : "vertical"}
-        className="flex w-48 shrink-0 flex-col gap-0.5 overflow-y-auto py-4 pr-1 pl-3 max-sm:w-full max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:border-b max-sm:border-line max-sm:px-3 max-sm:py-1.5 max-sm:[mask-image:linear-gradient(to_right,#000_85%,transparent)] max-sm:[scrollbar-width:none] max-sm:after:w-12 max-sm:after:shrink-0 max-sm:after:content-['']"
+        className="flex w-40 shrink-0 flex-col gap-0.5 overflow-y-auto py-4 pr-1 pl-3 max-sm:w-full max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:border-b max-sm:border-line max-sm:px-3 max-sm:py-1.5 max-sm:[mask-image:linear-gradient(to_right,#000_85%,transparent)] max-sm:[scrollbar-width:none] max-sm:after:w-12 max-sm:after:shrink-0 max-sm:after:content-['']"
       >
         {TABS.map(([id, label]) => (
           <button
@@ -827,7 +824,7 @@ export function SettingsDialog() {
             tabIndex={tab === id ? 0 : -1}
             onClick={() => ui.open("settings", id)}
             onKeyDown={onTabKey}
-            className={`h-9 shrink-0 whitespace-nowrap rounded-lg px-2.5 text-left text-[14px] focus-visible:outline-offset-[-2px] max-sm:h-11 max-sm:rounded-[10px] max-sm:px-3.5 ${tab === id ? "bg-muted font-medium text-fg" : "text-fg-muted hover:text-fg"}`}
+            className={`h-7 shrink-0 whitespace-nowrap rounded-md px-2 text-left text-[13px] focus-visible:outline-offset-[-2px] max-sm:h-9 max-sm:px-3 ${tab === id ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
           >
             {label}
           </button>

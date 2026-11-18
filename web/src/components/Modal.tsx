@@ -41,15 +41,15 @@ export function Modal({
             event.preventDefault();
             initialFocus.current.focus();
           }}
-          className={`fixed left-1/2 top-[10dvh] z-50 flex max-h-[80dvh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-xl border border-line bg-bg shadow-xl max-sm:top-[calc(var(--titlebar-bottom)+0.5rem)] max-sm:max-h-[calc(100dvh-1rem-var(--titlebar-bottom))] max-sm:w-[calc(100vw-1rem)] ${className}`}
+          className={`fixed left-1/2 top-[10dvh] z-50 flex max-h-[80dvh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-lg border border-line bg-bg shadow-xl max-sm:top-[calc(var(--titlebar-bottom)+0.5rem)] max-sm:max-h-[calc(100dvh-1rem-var(--titlebar-bottom))] max-sm:w-[calc(100vw-1rem)] ${className}`}
         >
-          <div className="flex items-center border-b border-line py-2.5 pr-2 pl-4">
-            <Dialog.Title className="text-[16px] font-semibold">{title}</Dialog.Title>
+          <div className="flex items-center border-b border-line px-4 py-3">
+            <Dialog.Title className="text-[14px] font-semibold">{title}</Dialog.Title>
             <Dialog.Close
-              className="ml-auto flex size-8 items-center justify-center rounded-lg text-fg-muted hover:bg-hover pointer-coarse:-my-1.5 pointer-coarse:size-11"
+              className="-my-1 ml-auto flex items-center justify-center rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:-my-2.5 pointer-coarse:size-11"
               aria-label="Close"
             >
-              <Icon name="close" size={16} />
+              <Icon name="close" size={14} />
             </Dialog.Close>
           </div>
           {description ? (
@@ -83,7 +83,7 @@ export function buttonClass(variant: ButtonVariant = "default", className = ""):
       "bg-danger text-accent-fg hover:opacity-90 disabled:bg-muted disabled:hover:opacity-100",
     ghost: "text-fg hover:bg-hover disabled:hover:bg-transparent",
   }[variant];
-  return `inline-flex h-9 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 text-[13px] font-medium disabled:cursor-not-allowed disabled:text-fg-muted pointer-coarse:h-11 ${styles} ${className}`;
+  return `inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-md border border-transparent px-3 py-1.5 text-[13px] disabled:cursor-not-allowed disabled:text-fg-muted pointer-coarse:py-2.5 ${styles} ${className}`;
 }
 
 export function Button({
@@ -111,7 +111,7 @@ export const fieldFocus =
   "outline-none focus:border-accent focus:ring-[3px] focus:ring-accent/30 aria-invalid:border-danger aria-invalid:ring-[3px] aria-invalid:ring-del-bg";
 
 /** A filled field without a width: no outline until it has focus or an error. */
-export const fieldClass = `rounded-lg border border-transparent bg-muted px-3 py-2 text-[14px] text-fg placeholder:text-fg-muted disabled:cursor-not-allowed disabled:text-fg-muted pointer-coarse:py-2.5 pointer-coarse:text-base ${fieldFocus}`;
+export const fieldClass = `rounded-md border border-transparent bg-muted px-2.5 py-1.5 text-[13px] text-fg placeholder:text-fg-muted disabled:cursor-not-allowed disabled:text-fg-muted pointer-coarse:text-base ${fieldFocus}`;
 
 /** A filled field as wide as its container. */
 export const inputClass = `w-full ${fieldClass}`;
