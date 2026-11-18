@@ -1,4 +1,4 @@
-import { useId, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Icon, Spinner } from "../components/Icon";
 import { additionDiff, diffStats } from "../lib/diff";
 import { formatDuration, relativePath, splitPath } from "../lib/format";
@@ -15,8 +15,6 @@ export interface ToolRowProps {
   durationMs?: number;
   cwd?: string;
   onShowAll?: () => void;
-  /** The model's reasoning just before this call; shown first when the row is expanded. */
-  reasoning?: string;
 }
 
 function str(value: unknown): string {
@@ -115,9 +113,7 @@ export function ToolRow({
   durationMs,
   cwd,
   onShowAll,
-  reasoning,
 }: ToolRowProps) {
-  const bodyId = useId();
   const summary = summarize(call, result, cwd);
   const autoOpen = status === "error" || (status === "running" && call.name === "bash");
   const [open, setOpen] = useState<boolean | null>(null);
@@ -144,7 +140,6 @@ export function ToolRow({
         onClick={() => setOpen(!expanded)}
         className="flex w-full min-w-0 items-center gap-2 rounded px-1 py-0.5 text-left font-mono text-[12.5px] hover:bg-hover active:bg-hover pointer-coarse:min-h-10"
         aria-expanded={expanded}
-        aria-controls={expanded ? bodyId : undefined}
       >
         <Icon
           name={expanded ? "chevronDown" : "chevronRight"}
@@ -160,7 +155,6 @@ export function ToolRow({
           </span>
         )}
         <span className="ml-auto flex shrink-0 items-center gap-2 pl-2 text-fg-faint">
-          {reasoning ? <Icon name="thought" size={12} title="Includes reasoning" /> : null}
           {summary.stat ? <span>{summary.stat}</span> : null}
           {durationMs !== undefined && status !== "running" ? (
             <span>{formatDuration(durationMs)}</span>
@@ -169,15 +163,7 @@ export function ToolRow({
         </span>
       </button>
       {expanded ? (
-        <div id={bodyId} className="mb-2 ml-5 mt-1 space-y-2">
-          {reasoning ? (
-            <section
-              aria-label="Reasoning"
-              className="max-h-60 overflow-y-auto whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] text-fg-muted"
-            >
-              {reasoning}
-            </section>
-          ) : null}
+        <div className="mb-2 ml-5 mt-1 space-y-2">
           {summary.diff && status !== "error" ? (
             <DiffView diff={summary.diff} maxLines={400} />
           ) : null}
