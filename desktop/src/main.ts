@@ -25,7 +25,7 @@ const READY_TIMEOUT_MS = 30_000;
 const TITLE_BAR_HEIGHT = 43;
 /** The web UI's --bg and --fg-muted tokens, used until the page reports its own theme. */
 const THEME_COLORS = {
-  light: { color: "#ffffff", symbolColor: "#6b6b68" },
+  light: { color: "#ffffff", symbolColor: "#5c5c59" },
   dark: { color: "#161616", symbolColor: "#a3a3a0" },
 };
 const HEX_COLOR = /^#[0-9a-f]{3,8}$/i;

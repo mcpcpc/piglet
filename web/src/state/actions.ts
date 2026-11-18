@@ -258,6 +258,13 @@ export async function send(text: string, images: ImageContent[], mode: SendMode)
   }
 }
 
+/** Run the agent again after the active session's last turn failed. */
+export async function retryTurn(): Promise<void> {
+  const view = activeView();
+  if (!view) return;
+  await request("retry", { sessionId: view.id });
+}
+
 export async function abort(): Promise<void> {
   const view = activeView();
   if (!view) return;

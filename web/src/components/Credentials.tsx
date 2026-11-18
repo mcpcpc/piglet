@@ -39,6 +39,7 @@ import {
   ui,
   useApp,
 } from "../state/store";
+import { Callout } from "./Callout";
 import { Icon, Spinner } from "./Icon";
 import { Button, buttonClass, inputClass } from "./Modal";
 import { InlineConfirm, Segmented } from "./SettingsKit";
@@ -923,14 +924,14 @@ export function RefreshFailed({ error }: { error: string | null }) {
 export function ModelsWarning({ warnings }: { warnings: string[] }) {
   if (warnings.length === 0) return null;
   return (
-    <div className="mb-3 flex gap-2 rounded-md bg-warning/15 p-3 text-[13px]">
-      <Icon name="alert" size={14} className="mt-0.5 shrink-0 text-warning" />
-      <div className="min-w-0 space-y-2">
-        <p className="[overflow-wrap:anywhere]">
-          Some providers may be missing because models.json has a problem: {warnings[0]}
-        </p>
-        <Button onClick={() => ui.open("settings", "models")}>Edit models.json</Button>
-      </div>
-    </div>
+    <Callout
+      tone="warning"
+      className="mb-3"
+      actions={<Button onClick={() => ui.open("settings", "models")}>Edit models.json</Button>}
+    >
+      <p className="[overflow-wrap:anywhere]">
+        Some providers may be missing because models.json has a problem: {warnings[0]}
+      </p>
+    </Callout>
   );
 }

@@ -6,7 +6,7 @@ import { useApp } from "../state/store";
 import { Composer } from "./Composer";
 
 vi.mock("../state/actions", () => ({
-  BUILTIN_COMMANDS: [],
+  BUILTIN_COMMANDS: [{ name: "model", description: "Choose a model", run: () => {} }],
   send: vi.fn(() => Promise.resolve(true)),
   abort: vi.fn(() => Promise.resolve()),
   cycleThinking: vi.fn(() => Promise.resolve()),
@@ -80,6 +80,22 @@ describe("Composer keys", () => {
     expect(send).not.toHaveBeenCalled();
     fireEvent.keyDown(box, { key: "Enter", ctrlKey: true });
     expect(send).toHaveBeenCalledWith("hello", [], "auto");
+  });
+
+  it("runs a complete slash command on Return on touch devices", () => {
+    pointer(true);
+    const box = typeDraft("/model");
+    expect(box.getAttribute("enterkeyhint")).toBe("go");
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(send).toHaveBeenCalledWith("/model", [], "auto");
+  });
+
+  it("keeps Return as a newline for text that only starts with a slash", () => {
+    pointer(true);
+    const box = typeDraft("/etc/hosts is wrong");
+    fireEvent.keyDown(box, { key: "Enter" });
+    expect(send).not.toHaveBeenCalled();
+    expect(box.getAttribute("enterkeyhint")).toBe("enter");
   });
 
   it("ignores Enter that commits an IME composition", () => {

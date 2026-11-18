@@ -50,6 +50,8 @@ COMMANDS: dict[str, tuple[bool, dict[str, tuple[Any, Any]]]] = {
     "set_auto_compaction": (True, {"enabled": (bool, ...)}),
     "set_auto_retry": (True, {"enabled": (bool, ...)}),
     "abort_retry": (True, {}),
+    # piglet: re-run the last turn after it failed
+    "retry": (True, {}),
     "bash": (True, {"command": (str, ...), "excludeFromContext": (bool, False)}),
     "abort_bash": (True, {}),
     "get_session_stats": (True, {}),

@@ -7,18 +7,21 @@
   --bg-subtle: #f6f6f5;
   --bg-muted: #eeeeec;
   --bg-hover: #e8e8e6;
+  /* The current item in a list (the open session); stronger than hover so it reads on touch. */
+  --bg-selected: #dededb;
   /* A surface that sits on bg-muted: the selected segment of a segmented control. */
   --bg-raised: #ffffff;
   --raised-shadow: 0 1px 2px rgb(0 0 0 / 0.16), 0 0 0 0.5px rgb(0 0 0 / 0.08);
   --fg: #1c1c1b;
-  --fg-muted: #6b6b68;
-  --fg-faint: #9b9b97;
+  /* fg-muted and fg-faint both carry readable text, so each meets WCAG AA (4.5:1) on bg-subtle. */
+  --fg-muted: #5c5c59;
+  --fg-faint: #70706d;
   --border: #e3e3e0;
   --accent: #b4467a;
   --accent-fg: #ffffff;
   --running: #2f6fd1;
   --danger: #c43a3a;
-  --warning: #b7791f;
+  --warning: #95600f;
   --add-bg: #e6f4ea;
   --add-fg: #1f6b35;
   --del-bg: #fbe9e9;
@@ -33,11 +36,12 @@
     --bg-subtle: #1d1d1c;
     --bg-muted: #262625;
     --bg-hover: #2e2e2d;
+    --bg-selected: #363635;
     --bg-raised: #3a3a39;
     --raised-shadow: none;
     --fg: #ececea;
     --fg-muted: #a3a3a0;
-    --fg-faint: #6f6f6c;
+    --fg-faint: #898985;
     --border: #2f2f2e;
     --accent: #e08ab3;
     --accent-fg: #1a1a1a;
@@ -58,11 +62,12 @@
   --bg-subtle: #1d1d1c;
   --bg-muted: #262625;
   --bg-hover: #2e2e2d;
+  --bg-selected: #363635;
   --bg-raised: #3a3a39;
   --raised-shadow: none;
   --fg: #ececea;
   --fg-muted: #a3a3a0;
-  --fg-faint: #6f6f6c;
+  --fg-faint: #898985;
   --border: #2f2f2e;
   --accent: #e08ab3;
   --accent-fg: #1a1a1a;
@@ -82,6 +87,7 @@
   --color-subtle: var(--bg-subtle);
   --color-muted: var(--bg-muted);
   --color-hover: var(--bg-hover);
+  --color-selected: var(--bg-selected);
   --color-raised: var(--bg-raised);
   --shadow-raised: var(--raised-shadow);
   --color-fg: var(--fg);

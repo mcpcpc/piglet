@@ -70,6 +70,12 @@ function QueueBar({ view }: { view: SessionView }) {
   );
 }
 
+/** Whether `text` is a single line naming a known slash command, such as `/model` or `/name x`. */
+function isCommandLine(text: string, names: ReadonlySet<string>): boolean {
+  const match = /^\/(\S+)(?:[ \t][^\n]*)?$/.exec(text.trim());
+  return Boolean(match?.[1] && names.has(match[1]));
+}
+
 export function Composer({ view }: { view: SessionView }) {
   const draft = useApp((s) => s.drafts[view.id] ?? "");
   const commands = useApp((s) => s.commands[view.id]);
@@ -84,6 +90,12 @@ export function Composer({ view }: { view: SessionView }) {
   // buttons send. A hardware keyboard can still send with ⌘/Ctrl+Enter (Alt+Enter queues).
   const touch = useMediaQuery(COARSE_POINTER);
   const canSend = Boolean(draft.trim() || images.length);
+  const commandNames = useMemo(
+    () => new Set([...BUILTIN_COMMANDS, ...(commands ?? [])].map((c) => c.name)),
+    [commands],
+  );
+  // A one-line `/command args` never needs a newline, so on touch Return runs it.
+  const commandLine = isCommandLine(draft, commandNames);
 
   useEffect(() => {
     const element = textarea.current;
@@ -186,7 +198,7 @@ export function Composer({ view }: { view: SessionView }) {
     const sendKey =
       event.key === "Enter" &&
       !event.shiftKey &&
-      (!touch || event.metaKey || event.ctrlKey || event.altKey);
+      (!touch || commandLine || event.metaKey || event.ctrlKey || event.altKey);
     if (sendKey) {
       event.preventDefault();
       void submit(event.altKey ? "followUp" : "auto");
@@ -279,6 +291,7 @@ export function Composer({ view }: { view: SessionView }) {
           rows={1}
           placeholder={placeholder}
           aria-label="Message"
+          enterKeyHint={touch && commandLine ? "go" : "enter"}
           onChange={(e) => {
             setDraft(view.id, e.target.value);
             updateToken(e.target.value, e.target.selectionStart);

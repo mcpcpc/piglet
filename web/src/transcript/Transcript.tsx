@@ -1,5 +1,8 @@
-import { memo, useState } from "react";
-import { Icon } from "../components/Icon";
+import { memo, type ReactNode, useEffect, useState } from "react";
+import { Callout } from "../components/Callout";
+import { Icon, Spinner } from "../components/Icon";
+import { Button } from "../components/Modal";
+import { isAuthError } from "../lib/errors";
 import { formatTokens } from "../lib/format";
 import {
   branchPath,
@@ -18,7 +21,7 @@ import type {
   ToolResultMessage,
   UserMessage,
 } from "../protocol/types";
-import type { LiveTool } from "../state/sessionView";
+import type { LiveTool, RetryState } from "../state/sessionView";
 import { Markdown } from "./Markdown";
 import { ToolRow, type ToolStatus } from "./ToolRow";
 
@@ -27,6 +30,10 @@ export interface TranscriptActions {
   forkFrom?: (entryId: string) => void;
   switchTo?: (entryId: string) => void;
   showAllBash?: () => void;
+  /** Run the agent again after the last turn failed. */
+  retry?: () => void;
+  /** Open sign-in for `provider` after it rejected the credentials. */
+  signIn?: (provider: string) => void;
 }
 
 export interface TranscriptProps {
@@ -40,6 +47,12 @@ export interface TranscriptProps {
   showThinking?: boolean;
   cwd?: string;
   actions?: TranscriptActions;
+  /** Whether context is being compacted (by the agent or `/compact`). */
+  compacting?: boolean;
+  /** The automatic retry being waited on, if any. */
+  retry?: RetryState | null;
+  /** A failure that ended the run outside any reply (shown until the next run starts). */
+  error?: string | null;
 }
 
 interface Context {
@@ -49,6 +62,8 @@ interface Context {
   showThinking: boolean;
   cwd?: string;
   actions: TranscriptActions;
+  /** The branch's last message, the only one a Retry can apply to. */
+  lastMessage?: AgentMessage;
 }
 
 function Images({ content }: { content: UserMessage["content"] }) {
@@ -238,15 +253,98 @@ function AssistantTurn({
           />
         );
       })}
-      {message.stopReason === "error" || message.stopReason === "aborted" ? (
-        <div className="flex items-start gap-2 rounded-md border border-danger/40 px-3 py-2 text-[13px] text-danger">
-          <Icon name="alert" size={14} className="mt-0.5" />
-          <span className="whitespace-pre-wrap">
-            {message.stopReason === "aborted"
-              ? "Stopped."
-              : (message.errorMessage ?? "The request failed.")}
-          </span>
-        </div>
+      {message.stopReason === "error" ? <FailedTurn message={message} ctx={ctx} /> : null}
+      {message.stopReason === "aborted" ? (
+        <p className="flex items-center gap-1.5 pt-1 text-[12px] text-fg-muted">
+          <Icon name="stop" size={12} /> Stopped
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Retry, plus Sign in when the provider rejected the credentials; none in the read-only export. */
+function recoveryActions(
+  actions: TranscriptActions,
+  message: string,
+  provider: string | undefined,
+): ReactNode {
+  const { retry, signIn } = actions;
+  const signInFix = Boolean(signIn && provider && isAuthError(message));
+  if (!retry && !signInFix) return null;
+  return (
+    <>
+      {retry ? <Button onClick={retry}>Retry</Button> : null}
+      {signInFix && provider ? <Button onClick={() => signIn?.(provider)}>Sign in</Button> : null}
+    </>
+  );
+}
+
+/** The latest failure is a callout with its fixes; earlier ones (retried or moved past) are a line. */
+function FailedTurn({ message, ctx }: { message: AssistantMessage; ctx: Context }) {
+  const text = message.errorMessage ?? "The provider returned an error.";
+  const latest = ctx.lastMessage === message && !ctx.isStreaming;
+  if (!latest) {
+    return (
+      <p className="flex items-start gap-1.5 pt-1 text-[12px] text-fg-muted">
+        <Icon name="alert" size={12} className="mt-0.5 shrink-0 text-danger" />
+        <span className="min-w-0 [overflow-wrap:anywhere]">Request failed: {text}</span>
+      </p>
+    );
+  }
+  return (
+    <Callout
+      tone="danger"
+      title="The request failed"
+      actions={recoveryActions(ctx.actions, text, message.provider)}
+    >
+      <p className="whitespace-pre-wrap text-fg-muted [overflow-wrap:anywhere]">{text}</p>
+    </Callout>
+  );
+}
+
+/**
+ * What the agent is doing when nothing else on screen shows it, or null when idle or when a
+ * spinner, the "Thinking…" toggle or streaming text already does.
+ */
+export function workingLabel(p: {
+  isStreaming: boolean;
+  compacting: boolean;
+  retry: RetryState | null;
+  streaming: AssistantMessage | null;
+  tools: Record<string, LiveTool>;
+  showThinking: boolean;
+}): string | null {
+  if (p.compacting) return "Compacting context…";
+  if (!p.isStreaming) return null;
+  if (p.retry) return `Retrying after an error (${p.retry.attempt}/${p.retry.maxAttempts})…`;
+  if (Object.values(p.tools).some((tool) => tool.status === "running")) return null;
+  const last = p.streaming?.content.at(-1);
+  if (last?.type === "toolCall") return null;
+  if (last?.type === "text" && last.text) return null;
+  if (last?.type === "thinking") return p.showThinking && last.thinking.trim() ? null : "Thinking…";
+  return "Working…";
+}
+
+/** A quiet "Working… 12s" line; the seconds appear after 3 and are not announced. */
+function WorkingLine({ label }: { label: string }) {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    const started = Date.now();
+    const timer = window.setInterval(
+      () => setSeconds(Math.floor((Date.now() - started) / 1000)),
+      1000,
+    );
+    return () => window.clearInterval(timer);
+  }, []);
+  return (
+    <div className="mt-3 flex items-center gap-2 text-[12px] text-fg-muted">
+      <Spinner label={null} className="text-fg-faint" />
+      <span role="status">{label}</span>
+      {seconds >= 3 ? (
+        <span className="text-fg-faint" aria-hidden="true">
+          {seconds}s
+        </span>
       ) : null}
     </div>
   );
@@ -354,14 +452,24 @@ export const Transcript = memo(function Transcript(props: TranscriptProps) {
   const { entries, leafId, provisional = [], streaming, tools = {}, liveBash, cwd } = props;
   const path = branchPath(entries, leafId);
   const pathMessages = path.flatMap((e) => (e.type === "message" ? [e.message] : []));
+  const allMessages = [...pathMessages, ...provisional];
   const ctx: Context = {
-    results: toolResultsById([...pathMessages, ...provisional]),
+    results: toolResultsById(allMessages),
     tools,
     isStreaming: Boolean(props.isStreaming),
     showThinking: props.showThinking ?? true,
     cwd,
     actions: props.actions ?? {},
+    lastMessage: allMessages.at(-1),
   };
+  const working = workingLabel({
+    isStreaming: ctx.isStreaming,
+    compacting: Boolean(props.compacting),
+    retry: props.retry ?? null,
+    streaming: streaming ?? null,
+    tools,
+    showThinking: ctx.showThinking,
+  });
   const labels = labelsByTarget(entries);
   let seenModel = false;
   const items = path.map((entry) => {
@@ -406,6 +514,20 @@ export const Transcript = memo(function Transcript(props: TranscriptProps) {
       {provisional.map((message, index) => renderMessage(`p${index}`, message, ctx, entries))}
       {streaming ? <AssistantTurn message={streaming} ctx={ctx} streaming /> : null}
       {liveBash ? <BashTurn live={liveBash} /> : null}
+      {props.error && !ctx.isStreaming ? (
+        <Callout
+          tone="danger"
+          role="alert"
+          title="Something went wrong"
+          className="mt-3"
+          actions={recoveryActions(ctx.actions, props.error, undefined)}
+        >
+          <p className="whitespace-pre-wrap text-fg-muted [overflow-wrap:anywhere]">
+            {props.error}
+          </p>
+        </Callout>
+      ) : null}
+      {working ? <WorkingLine label={working} /> : null}
     </div>
   );
 });

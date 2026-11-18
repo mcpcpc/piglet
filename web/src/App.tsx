@@ -1,7 +1,7 @@
 // Layout A ("Notebook"): sessions sidebar, one transcript column, composer, status line, and an
 // on-demand Changes/Bash drawer; tree, palette and settings open as overlays.
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SessionHeader, StatusLine } from "./components/Chrome";
 import { CommandPalette } from "./components/CommandPalette";
 import { Composer } from "./components/Composer";
@@ -27,9 +27,9 @@ import { shikiHighlighter } from "./lib/highlight";
 import { OVERLAY_DRAWER, OVERLAY_SIDEBAR, useMediaQuery } from "./lib/media";
 import { isMac, syncWindowColors } from "./lib/native";
 import { latestLeaf } from "./lib/tree";
-import { cycleModel, cycleThinking, forkAt, navigateTo } from "./state/actions";
+import { cycleModel, cycleThinking, forkAt, navigateTo, retryTurn } from "./state/actions";
 import type { SessionView } from "./state/sessionView";
-import { reportError, ui, useApp } from "./state/store";
+import { openCredentials, reportError, ui, useApp } from "./state/store";
 import { HighlighterContext } from "./transcript/Markdown";
 import { Transcript, type TranscriptActions } from "./transcript/Transcript";
 
@@ -82,15 +82,46 @@ function useOverlayPanels() {
   return { sidebar, drawer };
 }
 
+/** How close to the bottom (px) still counts as following the latest output. */
+const FOLLOW_SLACK = 80;
+
 function SessionPane({ view }: { view: SessionView }) {
   const showThinking = useApp((s) => s.showThinking && !s.settings.hideThinkingBlock);
   const scroller = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
+  const [following, setFollowing] = useState(true);
+
+  const follow = useCallback(() => {
+    stick.current = true;
+    setFollowing(true);
+    const element = scroller.current;
+    if (element) element.scrollTop = element.scrollHeight;
+  }, []);
 
   useEffect(() => {
     const element = scroller.current;
     if (element && stick.current) element.scrollTop = element.scrollHeight;
   });
+
+  // The composer growing, images loading and the on-screen keyboard resize the transcript
+  // without re-rendering this pane; keep following the output through those too.
+  useEffect(() => {
+    const element = scroller.current;
+    const inner = content.current;
+    if (!element || !inner || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (stick.current) element.scrollTop = element.scrollHeight;
+    });
+    observer.observe(element);
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, []);
+
+  // A run starts when the user sends something, so show its output even if they had scrolled up.
+  useEffect(() => {
+    if (view.state.isStreaming) follow();
+  }, [view.state.isStreaming, follow]);
 
   const actions: TranscriptActions = {
     editMessage: (entryId) => void navigateTo(entryId).catch(reportError),
@@ -102,43 +133,60 @@ function SessionPane({ view }: { view: SessionView }) {
       void navigateTo(leaf.id).catch(reportError);
     },
     showAllBash: () => ui.drawer(true, "bash"),
+    retry: () => void retryTurn().catch(reportError),
+    signIn: (provider) => openCredentials("login", provider),
   };
 
   const empty =
     view.entries.every((e) => e.type !== "message") && !view.provisional.length && !view.streaming;
   return (
     <>
-      <div
-        ref={scroller}
-        className="min-h-0 flex-1 overflow-y-auto"
-        onScroll={(e) => {
-          const el = e.currentTarget;
-          stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-        }}
-      >
-        <div className="mx-auto w-full max-w-3xl px-5 pt-6">
-          {empty ? (
-            <div className="py-16 text-center text-fg-muted">
-              <p className="text-[15px] text-fg">What should we work on?</p>
-              <p className="mt-1 text-[13px]">
-                The agent can read, edit and create files and run commands in{" "}
-                <span className="font-mono">{view.state.cwd}</span>.
-              </p>
-            </div>
-          ) : null}
-          <Transcript
-            entries={view.entries}
-            leafId={view.leafId}
-            provisional={view.provisional.map((p) => p.message)}
-            streaming={view.streaming}
-            tools={view.tools}
-            liveBash={view.bash}
-            isStreaming={view.state.isStreaming}
-            showThinking={showThinking}
-            cwd={view.state.cwd}
-            actions={actions}
-          />
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        <div
+          ref={scroller}
+          className="min-h-0 flex-1 overflow-y-auto"
+          onScroll={(e) => {
+            const el = e.currentTarget;
+            stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < FOLLOW_SLACK;
+            setFollowing(stick.current);
+          }}
+        >
+          <div ref={content} className="mx-auto w-full max-w-3xl px-5 pt-6">
+            {empty ? (
+              <div className="py-16 text-center text-fg-muted">
+                <p className="text-[15px] text-fg">What should we work on?</p>
+                <p className="mt-1 text-[13px]">
+                  The agent can read, edit and create files and run commands in{" "}
+                  <span className="font-mono">{view.state.cwd}</span>.
+                </p>
+              </div>
+            ) : null}
+            <Transcript
+              entries={view.entries}
+              leafId={view.leafId}
+              provisional={view.provisional.map((p) => p.message)}
+              streaming={view.streaming}
+              tools={view.tools}
+              liveBash={view.bash}
+              isStreaming={view.state.isStreaming}
+              showThinking={showThinking}
+              cwd={view.state.cwd}
+              actions={actions}
+              compacting={Boolean(view.compacting)}
+              retry={view.retry}
+              error={view.error}
+            />
+          </div>
         </div>
+        {following ? null : (
+          <button
+            type="button"
+            onClick={follow}
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-bg px-3 py-1 text-[12px] text-fg-muted shadow-md hover:text-fg pointer-coarse:py-2.5"
+          >
+            <Icon name="chevronDown" size={12} /> Jump to latest
+          </button>
+        )}
       </div>
       <ExtensionSurfaces sessionId={view.id} place="widget" />
       <Composer view={view} />
@@ -221,7 +269,7 @@ export function App() {
           <main className="flex min-w-0 flex-1 flex-col">
             <SessionHeader view={view} />
             <ConnectionBanner />
-            {view ? <SessionPane view={view} /> : <Welcome />}
+            {view ? <SessionPane key={view.id} view={view} /> : <Welcome />}
           </main>
           {view && overlay.drawer ? (
             <OffCanvas
