@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantMessage, SessionEntry } from "../protocol/types";
-import { Transcript, toolRunContinuations, turnItems, workingLabel } from "./Transcript";
+import { Transcript, workingLabel } from "./Transcript";
 
 const entries: SessionEntry[] = [
   {
@@ -165,109 +165,5 @@ describe("user shell commands", () => {
     };
     render(<Transcript entries={[...entries, ran]} leafId="b1" />);
     expect(screen.getByText("nothing to commit")).toBeTruthy();
-  });
-});
-
-describe("toolRunContinuations", () => {
-  const base = (failed[1] as { message: AssistantMessage }).message;
-  const turn = (content: AssistantMessage["content"], stopReason = "toolUse") =>
-    ({ ...base, content, stopReason }) as AssistantMessage;
-  const call = (id: string) => ({ type: "toolCall" as const, id, name: "read", arguments: {} });
-  const result = (id: string) => ({
-    role: "toolResult" as const,
-    toolCallId: id,
-    toolName: "read",
-    content: [],
-    isError: false,
-    timestamp: 0,
-  });
-
-  it("joins turns whose tool rows follow straight on, across tool results", () => {
-    const a = turn([{ type: "text", text: "Looking." }, call("1")]);
-    const b = turn([call("2")]);
-    const c = turn([{ type: "text", text: "Now editing." }, call("3")]);
-    const joined = toolRunContinuations([a, result("1"), b, result("2"), c], true);
-    expect([...joined]).toEqual([b]);
-  });
-
-  it("breaks the run at user messages, failures and reasoning that leads into text", () => {
-    const a = turn([call("1")]);
-    const user = { role: "user" as const, content: "wait", timestamp: 0 };
-    const afterUser = turn([call("2")]);
-    expect(toolRunContinuations([a, user, afterUser], true).size).toBe(0);
-    const explains = turn([
-      { type: "thinking", thinking: "hmm" },
-      { type: "text", text: "Next:" },
-      call("3"),
-    ]);
-    expect(toolRunContinuations([a, explains], true).size).toBe(0);
-    const errored = turn([call("4")], "error");
-    expect(toolRunContinuations([errored, turn([call("5")])], true).size).toBe(0);
-  });
-
-  it("keeps think-then-call steps in one run, thinking shown or hidden", () => {
-    const a = turn([{ type: "thinking", thinking: "plan" }, call("1")]);
-    const b = turn([{ type: "thinking", thinking: "next" }, call("2")]);
-    expect([...toolRunContinuations([a, result("1"), b], true)]).toEqual([b]);
-    expect([...toolRunContinuations([a, result("1"), b], false)]).toEqual([b]);
-  });
-});
-
-describe("reasoning before a tool call", () => {
-  afterEach(cleanup);
-  const base = (failed[1] as { message: AssistantMessage }).message;
-  const step = (content: AssistantMessage["content"], stopReason = "toolUse") =>
-    ({ ...base, content, stopReason }) as AssistantMessage;
-  const bash = { type: "toolCall" as const, id: "t1", name: "bash", arguments: { command: "ls" } };
-
-  it("folds into the call's row instead of a separate Thought row", () => {
-    const entry: SessionEntry = {
-      type: "message",
-      id: "a1",
-      parentId: "u1",
-      timestamp: "2",
-      message: step([{ type: "thinking", thinking: "List the files first." }, bash]),
-    };
-    const done: SessionEntry = {
-      type: "message",
-      id: "r1",
-      parentId: "a1",
-      timestamp: "3",
-      message: {
-        role: "toolResult",
-        toolCallId: "t1",
-        toolName: "bash",
-        content: [{ type: "text", text: "a.txt" }],
-        isError: false,
-        timestamp: 2,
-      },
-    };
-    render(<Transcript entries={[...entries, entry, done]} leafId="r1" />);
-    expect(screen.queryByText("Thought")).toBeNull();
-    expect(screen.getByTitle("Includes reasoning")).toBeTruthy();
-    fireEvent.click(screen.getByRole("button", { expanded: false }));
-    expect(screen.getByRole("region", { name: "Reasoning" }).textContent).toBe(
-      "List the files first.",
-    );
-  });
-
-  it("keeps a Thought row when the reasoning leads into text", () => {
-    const items = turnItems(
-      step([
-        { type: "thinking", thinking: "hmm" },
-        { type: "text", text: "Done." },
-      ]),
-      true,
-      false,
-    );
-    expect(items.map((i) => i.kind)).toEqual(["thought", "text"]);
-  });
-
-  it("shows a Thinking… row while reasoning streams, and nothing when thinking is hidden", () => {
-    const thinking = step([{ type: "thinking", thinking: "" }]);
-    expect(turnItems(thinking, true, true).map((i) => i.kind)).toEqual(["thinking"]);
-    expect(turnItems(thinking, false, true)).toEqual([]);
-    const folded = turnItems(step([{ type: "thinking", thinking: "x" }, bash]), false, false);
-    expect(folded).toEqual([{ kind: "tool", key: "t1", call: bash, reasoning: undefined }]);
   });
 });

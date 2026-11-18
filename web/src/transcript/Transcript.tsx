@@ -64,8 +64,6 @@ interface Context {
   actions: TranscriptActions;
   /** The branch's last message, the only one a Retry can apply to. */
   lastMessage?: AgentMessage;
-  /** Assistant turns that open with a tool call right after a turn that ended with one. */
-  continuesRun: Set<AgentMessage>;
 }
 
 function Images({ content }: { content: UserMessage["content"] }) {
@@ -182,20 +180,19 @@ function UserTurn({
   );
 }
 
-/** A "Thought" toggle for reasoning that leads into text (reasoning before a call folds into its row). */
-function Thinking({ text }: { text: string }) {
+function Thinking({ text, streaming }: { text: string; streaming: boolean }) {
   const [open, setOpen] = useState(false);
   if (!text.trim()) return null;
   return (
-    <div className="my-1 pointer-coarse:my-0">
+    <div className="my-1">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-[12px] italic text-fg-faint hover:text-fg-muted pointer-coarse:min-h-10"
+        className="flex w-full items-center gap-1 rounded text-left text-[12px] italic text-fg-faint hover:text-fg-muted active:bg-hover pointer-coarse:relative pointer-coarse:after:absolute pointer-coarse:after:inset-x-0 pointer-coarse:after:-inset-y-0.5"
         aria-expanded={open}
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
-        Thought
+        {streaming ? "Thinking…" : "Thought"}
       </button>
       {open ? (
         <div className="ml-4 mt-1 whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] italic text-fg-muted">
@@ -229,19 +226,23 @@ function AssistantTurn({
   streaming: boolean;
 }) {
   return (
-    <div
-      className={`${ctx.continuesRun.has(message) ? "mt-1 pointer-coarse:mt-0" : "mt-3"} space-y-1 pointer-coarse:space-y-0`}
-    >
-      {turnItems(message, ctx.showThinking, streaming).map((item) => {
-        if (item.kind === "thought") return <Thinking key={item.key} text={item.text} />;
-        if (item.kind === "thinking") return <ThinkingRow key={item.key} />;
-        if (item.kind === "text") return <Markdown key={item.key} text={item.text} />;
-        const block = item.call;
+    <div className="mt-3 space-y-1">
+      {message.content.map((block, index) => {
+        const blockKey = `${block.type}-${index}`;
+        const last = index === message.content.length - 1;
+        if (block.type === "thinking") {
+          return ctx.showThinking ? (
+            <Thinking key={blockKey} text={block.thinking} streaming={streaming && last} />
+          ) : null;
+        }
+        if (block.type === "text") {
+          return block.text ? <Markdown key={blockKey} text={block.text} /> : null;
+        }
         const live = ctx.tools[block.id];
         const result = ctx.results.get(block.id);
         return (
           <ToolRow
-            key={item.key}
+            key={block.id}
             call={block}
             status={toolStatus(block, ctx, streaming)}
             result={result ?? live?.result}
@@ -249,7 +250,6 @@ function AssistantTurn({
             durationMs={result?.durationMs ?? live?.durationMs}
             cwd={ctx.cwd}
             onShowAll={ctx.actions.showAllBash}
-            reasoning={item.reasoning}
           />
         );
       })}
@@ -322,7 +322,7 @@ export function workingLabel(p: {
   const last = p.streaming?.content.at(-1);
   if (last?.type === "toolCall") return null;
   if (last?.type === "text" && last.text) return null;
-  if (last?.type === "thinking") return p.showThinking ? null : "Thinking…";
+  if (last?.type === "thinking") return p.showThinking && last.thinking.trim() ? null : "Thinking…";
   return "Working…";
 }
 
@@ -365,12 +365,12 @@ function BashTurn({
   const output = message?.output ?? live?.output ?? "";
   const failed = message && (message.cancelled || (message.exitCode ?? 0) !== 0);
   return (
-    <div className="mt-4 pointer-coarse:mt-2">
+    <div className="mt-4">
       <button
         type="button"
         onClick={() => setOpen(!open)}
         aria-expanded={open}
-        className="flex w-full items-center gap-2 font-mono text-[12.5px] text-fg-muted hover:text-fg pointer-coarse:min-h-10"
+        className="flex w-full items-center gap-2 rounded font-mono text-[12.5px] text-fg-muted hover:text-fg active:bg-hover"
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
         <span className="text-fg-faint">$</span>
@@ -394,11 +394,11 @@ function BashTurn({
 function Divider({ title, detail }: { title: string; detail?: string }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="my-6 pointer-coarse:my-3">
+    <div className="my-6">
       <button
         type="button"
         onClick={() => detail && setOpen(!open)}
-        className={`flex w-full items-center gap-3 text-[11px] uppercase tracking-wide text-fg-faint ${detail ? "pointer-coarse:min-h-10" : ""}`}
+        className="flex w-full items-center gap-3 text-[11px] uppercase tracking-wide text-fg-faint"
       >
         <span className="h-px flex-1 bg-line" />
         <span className="flex items-center gap-1">
@@ -414,100 +414,6 @@ function Divider({ title, detail }: { title: string; detail?: string }) {
       ) : null}
     </div>
   );
-}
-
-type TurnItem =
-  | { kind: "thought"; key: string; text: string }
-  | { kind: "thinking"; key: string }
-  | { kind: "text"; key: string; text: string }
-  | { kind: "tool"; key: string; call: ToolCall & { partialJson?: string }; reasoning?: string };
-
-/**
- * What a turn renders, in order. Reasoning right before a tool call folds into that call's row
- * (one row per step); reasoning before text keeps its own "Thought" toggle; reasoning still
- * streaming with nothing after it yet is a "Thinking…" row. Hidden thinking renders nothing.
- */
-export function turnItems(
-  message: AssistantMessage,
-  showThinking: boolean,
-  streaming: boolean,
-): TurnItem[] {
-  const items: TurnItem[] = [];
-  let pending: { key: string; text: string } | null = null;
-  message.content.forEach((block, index) => {
-    if (block.type === "thinking") {
-      if (!showThinking) return;
-      pending = pending
-        ? { key: pending.key, text: `${pending.text}\n\n${block.thinking}` }
-        : { key: `thinking-${index}`, text: block.thinking };
-      return;
-    }
-    if (block.type === "text") {
-      if (!block.text) return;
-      if (pending?.text.trim()) items.push({ kind: "thought", ...pending });
-      pending = null;
-      items.push({ kind: "text", key: `text-${index}`, text: block.text });
-      return;
-    }
-    const reasoning = pending?.text.trim() ? pending.text : undefined;
-    items.push({ kind: "tool", key: block.id, call: block, reasoning });
-    pending = null;
-  });
-  const trailing = pending as { key: string; text: string } | null;
-  if (trailing && streaming) items.push({ kind: "thinking", key: trailing.key });
-  else if (trailing?.text.trim()) items.push({ kind: "thought", ...trailing });
-  return items;
-}
-
-/** A tool-row-shaped placeholder while the model reasons before its next step. */
-function ThinkingRow() {
-  return (
-    <div className="flex min-w-0 items-center gap-2 px-1 py-0.5 font-mono text-[12.5px] pointer-coarse:min-h-10">
-      <span className="w-3 shrink-0" />
-      <span role="status" className="text-fg-muted">
-        Thinking…
-      </span>
-      <span className="ml-auto pl-2">
-        <Spinner label={null} className="text-running" />
-      </span>
-    </div>
-  );
-}
-
-/** Whether a turn starts and ends with a row in a tool run (a tool or a "Thinking…" row). */
-function toolEdges(message: AssistantMessage, showThinking: boolean, streaming: boolean) {
-  const items = turnItems(message, showThinking, streaming);
-  const inRun = (item?: TurnItem) => item?.kind === "tool" || item?.kind === "thinking";
-  const failed = message.stopReason === "error" || message.stopReason === "aborted";
-  return { startsWithTool: inRun(items[0]), endsWithTool: !failed && inRun(items.at(-1)) };
-}
-
-/**
- * Turns whose tool rows continue the previous turn's, so a run of calls split across replies
- * keeps one rhythm. Tool results and hidden messages render nothing, so they don't break a run.
- */
-export function toolRunContinuations(
-  messages: AgentMessage[],
-  showThinking: boolean,
-  streaming: AgentMessage | null = null,
-): Set<AgentMessage> {
-  const continues = new Set<AgentMessage>();
-  let previousEndsWithTool = false;
-  for (const message of messages) {
-    if (message.role === "toolResult" || (message.role === "custom" && !message.display)) continue;
-    if (message.role !== "assistant") {
-      previousEndsWithTool = false;
-      continue;
-    }
-    const { startsWithTool, endsWithTool } = toolEdges(
-      message,
-      showThinking,
-      message === streaming,
-    );
-    if (previousEndsWithTool && startsWithTool) continues.add(message);
-    previousEndsWithTool = endsWithTool;
-  }
-  return continues;
 }
 
 function renderMessage(
@@ -559,11 +465,6 @@ export const Transcript = memo(function Transcript(props: TranscriptProps) {
     cwd,
     actions: props.actions ?? {},
     lastMessage: allMessages.at(-1),
-    continuesRun: toolRunContinuations(
-      streaming ? [...allMessages, streaming] : allMessages,
-      props.showThinking ?? true,
-      streaming ?? null,
-    ),
   };
   const working = workingLabel({
     isStreaming: ctx.isStreaming,
