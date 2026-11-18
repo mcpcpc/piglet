@@ -137,7 +137,13 @@ describe("Settings controls", () => {
     await act(async () => fireEvent.click(hide));
     expect(updates()).toEqual([{ hideThinkingBlock: true }]);
     expect(hide.getAttribute("aria-checked")).toBe("true");
-    expect(screen.getByText("Saved")).toBeTruthy();
+    // "Saved" shows once in the dialog header, not under the row, so nothing below it moves.
+    const dialog = screen.getByRole("dialog");
+    const header = dialog.querySelector(".border-b") as HTMLElement;
+    expect(within(header).getByText("Saved")).toBeTruthy();
+    expect(within(header).getByRole("status")).toBeTruthy();
+    expect(within(screen.getByRole("tabpanel")).queryByText("Saved")).toBeNull();
+    expect(within(screen.getByRole("tabpanel")).queryByRole("status")).toBeNull();
   });
 
   it("flips a switch from its label too", async () => {
@@ -170,7 +176,12 @@ describe("Settings controls", () => {
     const hide = screen.getByRole("switch", { name: "Hide thinking blocks" });
     await act(async () => fireEvent.click(hide));
     expect(hide.getAttribute("aria-checked")).toBe("false");
-    expect(screen.getByText("Couldn't save. disk full")).toBeTruthy();
+    // The error stays at its row as an alert the switch points to; the header never says "Saved".
+    const alert = screen.getByRole("alert");
+    expect(alert.textContent).toBe("Couldn't save. disk full");
+    expect(hide.getAttribute("aria-describedby")).toContain(alert.id);
+    expect(screen.getByText("Not saved")).toBeTruthy();
+    expect(screen.queryByText("Saved")).toBeNull();
   });
 
   it("uses human labels in the thinking-level select", async () => {

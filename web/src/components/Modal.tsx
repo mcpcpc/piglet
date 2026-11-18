@@ -13,6 +13,7 @@ export function Modal({
   onEscapeKeyDown,
   className = "",
   bodyClassName = "overflow-y-auto p-4",
+  status,
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,6 +29,8 @@ export function Modal({
   className?: string;
   /** Classes for the body under the title bar; it scrolls by default. */
   bodyClassName?: string;
+  /** Live status in the title bar, between the title and the close button (e.g. "Saved"). */
+  status?: ReactNode;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
@@ -45,8 +48,9 @@ export function Modal({
         >
           <div className="flex items-center border-b border-line px-4 py-3">
             <Dialog.Title className="text-[14px] font-semibold">{title}</Dialog.Title>
+            {status ? <div className="ml-auto mr-2 flex items-center">{status}</div> : null}
             <Dialog.Close
-              className="-my-1 ml-auto flex items-center justify-center rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:-my-2.5 pointer-coarse:size-11"
+              className={`-my-1 flex items-center justify-center rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:-my-2.5 pointer-coarse:size-11 ${status ? "" : "ml-auto"}`}
               aria-label="Close"
             >
               <Icon name="close" size={14} />

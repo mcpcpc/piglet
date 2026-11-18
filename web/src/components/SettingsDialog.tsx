@@ -32,6 +32,7 @@ import {
   InlineConfirm,
   NumberSetting,
   type Patch,
+  SaveReporterContext,
   type SaveStatus,
   Section,
   SelectSetting,
@@ -39,6 +40,7 @@ import {
   StatusText,
   SwitchSetting,
   TextSetting,
+  useDialogSaveStatus,
 } from "./SettingsKit";
 
 interface SettingsData {
@@ -779,9 +781,12 @@ export function SettingsDialog() {
   const escapeRef: EscapeRef = useRef(null);
   const tablist = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
+  // Saves made by any row show once, in the header, so rows never shift when one is saved.
+  const { reporter, indicator, reset } = useDialogSaveStatus();
   useEffect(() => {
     if (open) void load();
-  }, [open, load]);
+    else reset();
+  }, [open, load, reset]);
   // Each tab starts at its top, and on phones the tab row scrolls to show the selected tab.
   useEffect(() => {
     if (!open) return;
@@ -793,6 +798,7 @@ export function SettingsDialog() {
       open={open}
       onClose={ui.close}
       title="Settings"
+      status={indicator}
       width="max-w-3xl"
       className="sm:h-[min(640px,80dvh)] max-sm:h-[calc(100dvh-1rem-var(--titlebar-bottom))]"
       bodyClassName="flex overflow-hidden max-sm:flex-col"
@@ -806,65 +812,67 @@ export function SettingsDialog() {
         if (escapeRef.current?.()) event.preventDefault();
       }}
     >
-      <div
-        ref={tablist}
-        role="tablist"
-        aria-label="Settings sections"
-        aria-orientation={narrow ? "horizontal" : "vertical"}
-        className="flex w-40 shrink-0 flex-col gap-0.5 overflow-y-auto py-4 pr-1 pl-3 max-sm:w-full max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:border-b max-sm:border-line max-sm:px-3 max-sm:py-1.5 max-sm:[mask-image:linear-gradient(to_right,#000_85%,transparent)] max-sm:[scrollbar-width:none] max-sm:after:w-12 max-sm:after:shrink-0 max-sm:after:content-['']"
-      >
-        {TABS.map(([id, label]) => (
-          <button
-            type="button"
-            key={id}
-            id={`settings-tab-${id}`}
-            role="tab"
-            aria-selected={tab === id}
-            aria-controls="settings-panel"
-            tabIndex={tab === id ? 0 : -1}
-            onClick={() => ui.open("settings", id)}
-            onKeyDown={onTabKey}
-            className={`h-7 shrink-0 whitespace-nowrap rounded-md px-2 text-left text-[13px] focus-visible:outline-offset-[-2px] max-sm:h-9 max-sm:px-3 ${tab === id ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-      <div
-        ref={panel}
-        role="tabpanel"
-        id="settings-panel"
-        aria-labelledby={`settings-tab-${tab}`}
-        data-settings-scroll
-        className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:pt-5 sm:pr-6 sm:pl-5"
-      >
-        <div className="max-w-[560px]">
-          {!data ? (
-            error ? (
-              <div role="alert" className="space-y-2 text-[13px]">
-                <p>Couldn't load settings. {error}</p>
-                <Button onClick={() => void load()}>Retry</Button>
-              </div>
-            ) : (
-              <p className="text-[13px] text-fg-muted">Loading settings…</p>
-            )
-          ) : tab === "general" ? (
-            <General data={data} patch={patch} />
-          ) : tab === "models" ? (
-            <Models data={data} patch={patch} />
-          ) : tab === "providers" ? (
-            <Providers escapeRef={escapeRef} />
-          ) : tab === "tools" ? (
-            <Tools data={data} patch={patch} />
-          ) : tab === "compaction" ? (
-            <Compaction data={data} patch={patch} />
-          ) : tab === "resources" ? (
-            <Resources data={data} />
-          ) : (
-            <Project data={data} reload={load} />
-          )}
+      <SaveReporterContext.Provider value={reporter}>
+        <div
+          ref={tablist}
+          role="tablist"
+          aria-label="Settings sections"
+          aria-orientation={narrow ? "horizontal" : "vertical"}
+          className="flex w-40 shrink-0 flex-col gap-0.5 overflow-y-auto py-4 pr-1 pl-3 max-sm:w-full max-sm:flex-row max-sm:gap-1 max-sm:overflow-x-auto max-sm:overflow-y-hidden max-sm:border-b max-sm:border-line max-sm:px-3 max-sm:py-1.5 max-sm:[mask-image:linear-gradient(to_right,#000_85%,transparent)] max-sm:[scrollbar-width:none] max-sm:after:w-12 max-sm:after:shrink-0 max-sm:after:content-['']"
+        >
+          {TABS.map(([id, label]) => (
+            <button
+              type="button"
+              key={id}
+              id={`settings-tab-${id}`}
+              role="tab"
+              aria-selected={tab === id}
+              aria-controls="settings-panel"
+              tabIndex={tab === id ? 0 : -1}
+              onClick={() => ui.open("settings", id)}
+              onKeyDown={onTabKey}
+              className={`h-7 shrink-0 whitespace-nowrap rounded-md px-2 text-left text-[13px] focus-visible:outline-offset-[-2px] max-sm:h-9 max-sm:px-3 ${tab === id ? "bg-muted text-fg" : "text-fg-muted hover:text-fg"}`}
+            >
+              {label}
+            </button>
+          ))}
         </div>
-      </div>
+        <div
+          ref={panel}
+          role="tabpanel"
+          id="settings-panel"
+          aria-labelledby={`settings-tab-${tab}`}
+          data-settings-scroll
+          className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:pt-5 sm:pr-6 sm:pl-5"
+        >
+          <div className="max-w-[560px]">
+            {!data ? (
+              error ? (
+                <div role="alert" className="space-y-2 text-[13px]">
+                  <p>Couldn't load settings. {error}</p>
+                  <Button onClick={() => void load()}>Retry</Button>
+                </div>
+              ) : (
+                <p className="text-[13px] text-fg-muted">Loading settings…</p>
+              )
+            ) : tab === "general" ? (
+              <General data={data} patch={patch} />
+            ) : tab === "models" ? (
+              <Models data={data} patch={patch} />
+            ) : tab === "providers" ? (
+              <Providers escapeRef={escapeRef} />
+            ) : tab === "tools" ? (
+              <Tools data={data} patch={patch} />
+            ) : tab === "compaction" ? (
+              <Compaction data={data} patch={patch} />
+            ) : tab === "resources" ? (
+              <Resources data={data} />
+            ) : (
+              <Project data={data} reload={load} />
+            )}
+          </div>
+        </div>
+      </SaveReporterContext.Provider>
     </Modal>
   );
 }
