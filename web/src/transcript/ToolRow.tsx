@@ -4,6 +4,7 @@ import { additionDiff, diffStats } from "../lib/diff";
 import { formatDuration, relativePath, splitPath } from "../lib/format";
 import type { ImageContent, TextContent, ToolCall, ToolResultPayload } from "../protocol/types";
 import { DiffView } from "./DiffView";
+import { RowChevron } from "./RowChevron";
 
 export type ToolStatus = "pending" | "running" | "done" | "error";
 
@@ -141,11 +142,7 @@ export function ToolRow({
         className="group/row flex w-full min-w-0 items-center gap-2 py-0.5 text-left font-mono text-[12.5px]"
         aria-expanded={expanded}
       >
-        <Icon
-          name={expanded ? "chevronDown" : "chevronRight"}
-          size={12}
-          className="text-fg-faint group-hover/row:text-fg-muted"
-        />
+        <RowChevron open={expanded} className="text-fg-faint group-hover/row:text-fg-muted" />
         <span className="shrink-0 text-fg-muted group-hover/row:text-fg">{summary.verb}</span>
         {!preparing && PATH_TOOLS.has(call.name) ? (
           <PathTarget path={summary.target} />
@@ -163,7 +160,7 @@ export function ToolRow({
         </span>
       </button>
       {expanded ? (
-        <div className="mb-2 ml-5 mt-1 space-y-2">
+        <div className="mb-2 ml-4 mt-1 space-y-2">
           {summary.diff && status !== "error" ? (
             <DiffView diff={summary.diff} maxLines={400} />
           ) : null}

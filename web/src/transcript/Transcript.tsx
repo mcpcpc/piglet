@@ -23,6 +23,7 @@ import type {
 } from "../protocol/types";
 import type { LiveTool, RetryState } from "../state/sessionView";
 import { Markdown } from "./Markdown";
+import { RowChevron } from "./RowChevron";
 import { ToolRow, type ToolStatus } from "./ToolRow";
 
 export interface TranscriptActions {
@@ -195,12 +196,12 @@ function Thinking({ text, streaming }: { text: string; streaming: boolean }) {
         aria-expanded={open}
         aria-busy={streaming || undefined}
       >
-        <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
+        <RowChevron open={open} />
         Thought
         {streaming ? <Spinner label={null} className="text-running" /> : null}
       </button>
       {open ? (
-        <div className="ml-5 mt-1 whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] italic text-fg-muted">
+        <div className="ml-4 mt-1 whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] italic text-fg-muted">
           {text}
         </div>
       ) : null}
@@ -401,7 +402,7 @@ function BashTurn({
         aria-expanded={open}
         className="flex w-full items-center gap-2 font-mono text-[12.5px] text-fg-muted hover:text-fg"
       >
-        <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
+        <RowChevron open={open} />
         <span className="text-accent">$</span>
         <span className="truncate text-fg">{command}</span>
         {message?.excludeFromContext ? (
@@ -412,7 +413,7 @@ function BashTurn({
         ) : null}
       </button>
       {open && output ? (
-        <pre className="ml-5 mt-1 max-h-80 overflow-auto whitespace-pre-wrap border-l-2 border-line pl-3 font-mono text-[12px] text-fg-muted">
+        <pre className="ml-4 mt-1 max-h-80 overflow-auto whitespace-pre-wrap border-l-2 border-line pl-3 font-mono text-[12px] text-fg-muted">
           {output}
         </pre>
       ) : null}
