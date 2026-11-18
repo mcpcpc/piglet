@@ -100,7 +100,7 @@ function SessionRow({
           <Icon name="more" size={14} />
         </Menu.Trigger>
         <Menu.Portal>
-          <Menu.Content className="z-50 min-w-36 rounded-md border border-line bg-bg p-1 text-[13px] shadow-lg">
+          <Menu.Content className="z-50 min-w-36 rounded-lg border border-line bg-float p-1 text-[13px] shadow-float">
             <Menu.Item
               onSelect={() => rename().catch(reportError)}
               className="cursor-pointer rounded px-2 py-1 outline-none data-[highlighted]:bg-hover"
@@ -126,6 +126,7 @@ function SessionRow({
  */
 export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
   const projects = useApp((s) => s.projects);
+  const projectsLoaded = useApp((s) => s.projectsLoaded);
   const expanded = useApp((s) => s.expanded);
   const sessions = useApp((s) => s.sessionsByProject);
   const hello = useApp((s) => s.hello);
@@ -174,7 +175,7 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
         ) : null}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
-        {projects.length === 0 ? (
+        {projectsLoaded && projects.length === 0 ? (
           <p className="px-2 py-4 text-[13px] text-fg-muted">Open a project folder to start.</p>
         ) : null}
         {projects.map((project) => (
@@ -206,7 +207,7 @@ export function Sidebar({ onDismiss }: { onDismiss?: () => void } = {}) {
                   <Icon name="more" size={14} />
                 </Menu.Trigger>
                 <Menu.Portal>
-                  <Menu.Content className="z-50 min-w-40 rounded-md border border-line bg-bg p-1 text-[13px] shadow-lg">
+                  <Menu.Content className="z-50 min-w-40 rounded-lg border border-line bg-float p-1 text-[13px] shadow-float">
                     <Menu.Item
                       onSelect={() => ui.trust(project.cwd)}
                       className="cursor-pointer rounded px-2 py-1 outline-none data-[highlighted]:bg-hover"

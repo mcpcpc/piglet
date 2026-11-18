@@ -138,7 +138,10 @@ function SessionPane({ view }: { view: SessionView }) {
   };
 
   const empty =
-    view.entries.every((e) => e.type !== "message") && !view.provisional.length && !view.streaming;
+    view.loaded &&
+    view.entries.every((e) => e.type !== "message") &&
+    !view.provisional.length &&
+    !view.streaming;
   return (
     <>
       <div className="relative flex min-h-0 flex-1 flex-col">
@@ -182,7 +185,7 @@ function SessionPane({ view }: { view: SessionView }) {
           <button
             type="button"
             onClick={follow}
-            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-bg px-3 py-1 text-[12px] text-fg-muted shadow-md hover:text-fg pointer-coarse:py-2.5"
+            className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-1.5 rounded-full border border-line bg-float px-3 py-1 text-[12px] text-fg-muted shadow-float hover:text-fg pointer-coarse:py-2.5"
           >
             <Icon name="chevronDown" size={12} /> Jump to latest
           </button>
@@ -198,12 +201,14 @@ function SessionPane({ view }: { view: SessionView }) {
 
 function Welcome() {
   const projects = useApp((s) => s.projects);
+  // Until the project list arrives, keep the space but don't guess which advice applies.
+  const pending = useApp((s) => !s.projectsLoaded);
   return (
     <div className="flex flex-1 items-center justify-center p-8">
       <div className="max-w-sm text-center">
         <Logo size={56} className="mx-auto mb-3 block text-accent" />
         <p className="text-[16px] font-medium">piglet</p>
-        <p className="mt-2 text-[13px] text-fg-muted">
+        <p className={`mt-2 text-[13px] text-fg-muted ${pending ? "invisible" : ""}`}>
           {projects.length
             ? "Pick a session in the sidebar, or open another folder."
             : "Open a project folder to start a session."}
@@ -211,7 +216,7 @@ function Welcome() {
         <button
           type="button"
           onClick={() => addProject().catch(reportError)}
-          className="mt-4 inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-[13px] text-accent-fg"
+          className={`mt-4 inline-flex items-center gap-2 rounded-md bg-accent px-3 py-1.5 text-[13px] text-accent-fg ${pending ? "invisible" : ""}`}
         >
           <Icon name="folder" size={14} /> Open folder
         </button>

@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Icon, Spinner } from "../components/Icon";
 import { additionDiff, diffStats } from "../lib/diff";
-import { formatDuration } from "../lib/format";
+import { formatDuration, relativePath, splitPath } from "../lib/format";
 import type { ImageContent, TextContent, ToolCall, ToolResultPayload } from "../protocol/types";
 import { DiffView } from "./DiffView";
 
@@ -19,11 +19,6 @@ export interface ToolRowProps {
 
 function str(value: unknown): string {
   return typeof value === "string" ? value : value === undefined ? "" : JSON.stringify(value);
-}
-
-function relative(path: string, cwd?: string): string {
-  if (cwd && path.startsWith(`${cwd}/`)) return path.slice(cwd.length + 1);
-  return path;
 }
 
 function resultText(result?: ToolResultPayload): string {
@@ -48,7 +43,7 @@ interface Summary {
 export function summarize(call: ToolCall, result?: ToolResultPayload, cwd?: string): Summary {
   const args = call.arguments ?? {};
   const details = (result?.details ?? {}) as Record<string, unknown>;
-  const path = relative(str(args.path), cwd);
+  const path = relativePath(str(args.path), cwd);
   switch (call.name) {
     case "read": {
       const range = args.offset
@@ -96,6 +91,19 @@ function StatusIcon({ status }: { status: ToolStatus }) {
 }
 
 const TAIL_LINES = 10;
+/** Tools whose target is a file path, shown with the file name kept whole. */
+const PATH_TOOLS = new Set(["read", "write", "edit"]);
+
+/** "src/" then "rate_limit.py": when space runs out the directory shortens first. */
+function PathTarget({ path }: { path: string }) {
+  const { dir, name } = splitPath(path);
+  return (
+    <span className="flex min-w-0" title={path}>
+      {dir ? <span className="min-w-0 truncate text-fg-muted">{dir}</span> : null}
+      <span className="min-w-0 shrink-[0.001] truncate text-fg">{name}</span>
+    </span>
+  );
+}
 
 export function ToolRow({
   call,
@@ -115,22 +123,37 @@ export function ToolRow({
   const outputLines = output.split("\n");
   const tail = call.name === "bash" && outputLines.length > TAIL_LINES;
   const preparing = status === "pending" && call.partialJson !== undefined;
+  // The expanded body repeats a bash command only when the row cannot show all of it.
+  const command = call.name === "bash" ? str(call.arguments.command) : "";
+  const target = useRef<HTMLSpanElement>(null);
+  const [clipped, setClipped] = useState(false);
+  useLayoutEffect(() => {
+    const element = target.current;
+    if (expanded && element) setClipped(element.scrollWidth > element.clientWidth);
+  }, [expanded]);
+  const showCommand = Boolean(command) && (command.includes("\n") || clipped);
 
   return (
     <div className="group">
       <button
         type="button"
         onClick={() => setOpen(!expanded)}
-        className="flex w-full min-w-0 items-center gap-2 rounded px-1 py-0.5 text-left font-mono text-[12.5px] hover:bg-hover"
+        className="group/row flex w-full min-w-0 items-center gap-2 py-0.5 text-left font-mono text-[12.5px]"
         aria-expanded={expanded}
       >
         <Icon
           name={expanded ? "chevronDown" : "chevronRight"}
           size={12}
-          className="text-fg-faint"
+          className="text-fg-faint group-hover/row:text-fg-muted"
         />
-        <span className="shrink-0 text-fg-muted">{summary.verb}</span>
-        <span className="min-w-0 truncate text-fg">{preparing ? "…" : summary.target}</span>
+        <span className="shrink-0 text-fg-muted group-hover/row:text-fg">{summary.verb}</span>
+        {!preparing && PATH_TOOLS.has(call.name) ? (
+          <PathTarget path={summary.target} />
+        ) : (
+          <span ref={target} className="min-w-0 truncate text-fg">
+            {preparing ? "…" : summary.target}
+          </span>
+        )}
         <span className="ml-auto flex shrink-0 items-center gap-2 pl-2 text-fg-faint">
           {summary.stat ? <span>{summary.stat}</span> : null}
           {durationMs !== undefined && status !== "running" ? (
@@ -144,15 +167,15 @@ export function ToolRow({
           {summary.diff && status !== "error" ? (
             <DiffView diff={summary.diff} maxLines={400} />
           ) : null}
-          {call.name === "bash" ? (
+          {showCommand ? (
             <pre className="whitespace-pre-wrap border-l-2 border-line pl-3 font-mono text-[12px] text-fg-muted">
-              {str(call.arguments.command)}
+              {command}
             </pre>
           ) : null}
           {output && (!summary.diff || status === "error") ? (
             <pre
-              className={`max-h-80 overflow-auto whitespace-pre-wrap border-l-2 pl-3 font-mono text-[12px] ${
-                status === "error" ? "border-danger text-danger" : "border-line text-fg-muted"
+              className={`max-h-80 overflow-auto whitespace-pre-wrap border-l-2 pl-3 font-mono text-[12px] text-fg-muted ${
+                status === "error" ? "border-danger" : "border-line"
               }`}
             >
               {tail ? outputLines.slice(-TAIL_LINES).join("\n") : output}

@@ -67,6 +67,20 @@ _OVERFLOW_TEXT = re.compile(
 )
 
 
+def _is_empty_reply(message: Message | dict[str, Any]) -> bool:
+    """Whether ``message`` is a finished reply with no text and no tool calls.
+
+    Some reasoning models stop after thinking; Retry asks again from before that reply.
+    """
+    if message.get("role") != "assistant" or message.get("stopReason") != "stop":
+        return False
+    return not any(
+        block.get("type") == "toolCall"
+        or (block.get("type") == "text" and str(block.get("text", "")).strip())
+        for block in message.get("content", [])
+    )
+
+
 class SessionBusyError(RuntimeError):
     """An operation needs the agent to be idle."""
 
@@ -352,7 +366,9 @@ class AgentSession:  # noqa: PLR0904 - the session's public surface mirrors Pi's
         Raises:
             SessionBusyError: If the agent is running.
             NoModelError: If no model is configured.
-            ValueError: If the branch does not end in a failed turn.
+            ValueError: If the branch does not end in a failed turn. A reply that stopped
+                after thinking with no text or tool calls counts as failed: the leaf moves back
+                before it (it stays in the tree) and the model is asked again.
         """
         if self.is_streaming:
             raise SessionBusyError("The agent is already working.")
@@ -361,11 +377,19 @@ class AgentSession:  # noqa: PLR0904 - the session's public surface mirrors Pi's
         messages = self.file.context().messages
         last = messages[-1] if messages else {}
         failed = last.get("role") == "assistant" and last.get("stopReason") == "error"
-        if not failed and last.get("role") not in {"user", "toolResult"}:
+        if _is_empty_reply(last):
+            self._branch_before_last_message()
+        elif not failed and last.get("role") not in {"user", "toolResult"}:
             raise ValueError("There's no failed turn to retry.")
         self._start(self._pending_bash)
         self._pending_bash = []
         return "started"
+
+    def _branch_before_last_message(self) -> None:
+        """Move the leaf to just before the branch's last message; it stays in the tree."""
+        entry = next(e for e in reversed(self.file.branch()) if e.get("type") == "message")
+        self.file.set_leaf(entry.get("parentId"))
+        self.emit({"type": "tree_navigated", "leafId": self.file.leaf_id, "editorText": None})
 
     def enqueue(self, kind: str, text: str, images: list[dict[str, Any]] | None = None) -> str:
         """Queue a steering or follow-up message (or start a run when idle)."""

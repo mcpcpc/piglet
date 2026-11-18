@@ -64,6 +64,8 @@ interface Context {
   actions: TranscriptActions;
   /** The branch's last message, the only one a Retry can apply to. */
   lastMessage?: AgentMessage;
+  /** Replies that continue a run of Thought and tool rows from the reply before. */
+  continuesRows: Set<AgentMessage>;
 }
 
 function Images({ content }: { content: UserMessage["content"] }) {
@@ -180,22 +182,25 @@ function UserTurn({
   );
 }
 
+/** Collapsed reasoning; while it streams, a spinner follows the label instead of a new label. */
 function Thinking({ text, streaming }: { text: string; streaming: boolean }) {
   const [open, setOpen] = useState(false);
-  if (!text.trim()) return null;
+  if (!text.trim() && !streaming) return null;
   return (
     <div className="my-1">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1 text-[12px] italic text-fg-faint hover:text-fg-muted"
+        className="flex items-center gap-2 text-[12px] italic text-fg-faint hover:text-fg-muted"
         aria-expanded={open}
+        aria-busy={streaming || undefined}
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
-        {streaming ? "Thinking…" : "Thought"}
+        Thought
+        {streaming ? <Spinner label={null} className="text-running" /> : null}
       </button>
       {open ? (
-        <div className="ml-4 mt-1 whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] italic text-fg-muted">
+        <div className="ml-5 mt-1 whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] italic text-fg-muted">
           {text}
         </div>
       ) : null}
@@ -226,7 +231,7 @@ function AssistantTurn({
   streaming: boolean;
 }) {
   return (
-    <div className="mt-3 space-y-1">
+    <div className={`${ctx.continuesRows.has(message) ? "mt-1" : "mt-3"} space-y-1`}>
       {message.content.map((block, index) => {
         const blockKey = `${block.type}-${index}`;
         const last = index === message.content.length - 1;
@@ -254,10 +259,34 @@ function AssistantTurn({
         );
       })}
       {message.stopReason === "error" ? <FailedTurn message={message} ctx={ctx} /> : null}
+      {!streaming && isEmptyReply(message) ? <EmptyReply message={message} ctx={ctx} /> : null}
       {message.stopReason === "aborted" ? (
         <p className="flex items-center gap-1.5 pt-1 text-[12px] text-fg-muted">
           <Icon name="stop" size={12} /> Stopped
         </p>
+      ) : null}
+    </div>
+  );
+}
+
+/** Whether a finished reply has no text and no tool calls (some reasoning models stop after thinking). */
+export function isEmptyReply(message: AssistantMessage): boolean {
+  return (
+    message.stopReason === "stop" &&
+    !message.content.some((b) => b.type === "toolCall" || (b.type === "text" && b.text.trim()))
+  );
+}
+
+/** Not an error, so muted rather than red; Retry asks the model again from the same point. */
+function EmptyReply({ message, ctx }: { message: AssistantMessage; ctx: Context }) {
+  const latest = ctx.lastMessage === message && !ctx.isStreaming;
+  return (
+    <div className="flex items-center gap-2 pt-1 text-[12px] text-fg-muted">
+      <span>The model stopped after thinking without replying.</span>
+      {latest && ctx.actions.retry ? (
+        <Button variant="ghost" onClick={ctx.actions.retry}>
+          Retry
+        </Button>
       ) : null}
     </div>
   );
@@ -305,7 +334,7 @@ function FailedTurn({ message, ctx }: { message: AssistantMessage; ctx: Context 
 
 /**
  * What the agent is doing when nothing else on screen shows it, or null when idle or when a
- * spinner, the "Thinking…" toggle or streaming text already does.
+ * spinner, the Thought row's spinner or streaming text already does.
  */
 export function workingLabel(p: {
   isStreaming: boolean;
@@ -322,7 +351,7 @@ export function workingLabel(p: {
   const last = p.streaming?.content.at(-1);
   if (last?.type === "toolCall") return null;
   if (last?.type === "text" && last.text) return null;
-  if (last?.type === "thinking") return p.showThinking && last.thinking.trim() ? null : "Thinking…";
+  if (last?.type === "thinking") return p.showThinking ? null : "Thinking…";
   return "Working…";
 }
 
@@ -350,14 +379,17 @@ function WorkingLine({ label }: { label: string }) {
   );
 }
 
+/** A `!command` the user ran; it starts open while running and when it is the latest message. */
 function BashTurn({
   message,
   live,
+  latest = false,
 }: {
   message?: BashExecutionMessage;
   live?: { command: string; output: string };
+  latest?: boolean;
 }) {
-  const [open, setOpen] = useState(Boolean(live));
+  const [open, setOpen] = useState(Boolean(live) || latest);
   const command = message?.command ?? live?.command ?? "";
   const output = message?.output ?? live?.output ?? "";
   const failed = message && (message.cancelled || (message.exitCode ?? 0) !== 0);
@@ -366,6 +398,7 @@ function BashTurn({
       <button
         type="button"
         onClick={() => setOpen(!open)}
+        aria-expanded={open}
         className="flex w-full items-center gap-2 font-mono text-[12.5px] text-fg-muted hover:text-fg"
       >
         <Icon name={open ? "chevronDown" : "chevronRight"} size={12} />
@@ -412,6 +445,34 @@ function Divider({ title, detail }: { title: string; detail?: string }) {
   );
 }
 
+/**
+ * Replies that open with a Thought or tool row right after another reply. Like Pi, which puts the
+ * same single blank line between every block, these keep the 4px gap the rows have inside a reply
+ * instead of a 12px one; replies that open with text keep 12px so prose doesn't crowd the rows.
+ * Tool results render nothing, so they don't break a run.
+ */
+export function rowContinuations(
+  messages: AgentMessage[],
+  showThinking: boolean,
+): Set<AgentMessage> {
+  const continues = new Set<AgentMessage>();
+  let previousIsReply = false;
+  for (const message of messages) {
+    if (message.role === "toolResult" || (message.role === "custom" && !message.display)) continue;
+    if (message.role === "assistant" && previousIsReply) {
+      const first = message.content.find(
+        (b) =>
+          b.type === "toolCall" ||
+          (b.type === "text" && b.text.trim()) ||
+          (b.type === "thinking" && showThinking),
+      );
+      if (first && first.type !== "text") continues.add(message);
+    }
+    previousIsReply = message.role === "assistant";
+  }
+  return continues;
+}
+
 function renderMessage(
   key: string,
   message: AgentMessage,
@@ -435,7 +496,7 @@ function renderMessage(
     case "assistant":
       return <AssistantTurn key={key} message={message} ctx={ctx} streaming={false} />;
     case "bashExecution":
-      return <BashTurn key={key} message={message} />;
+      return <BashTurn key={key} message={message} latest={ctx.lastMessage === message} />;
     case "custom":
       return message.display ? (
         <div key={key} className="mt-4 rounded-md border border-line px-3 py-2">
@@ -461,6 +522,10 @@ export const Transcript = memo(function Transcript(props: TranscriptProps) {
     cwd,
     actions: props.actions ?? {},
     lastMessage: allMessages.at(-1),
+    continuesRows: rowContinuations(
+      streaming ? [...allMessages, streaming] : allMessages,
+      props.showThinking ?? true,
+    ),
   };
   const working = workingLabel({
     isStreaming: ctx.isStreaming,

@@ -11,7 +11,7 @@ export function Toasts() {
       {toasts.map((toast) => (
         <div
           key={toast.id}
-          className={`pointer-events-auto flex items-start gap-2 rounded-md border bg-bg px-3 py-2 text-[13px] shadow-lg ${
+          className={`pointer-events-auto flex items-start gap-2 rounded-lg border bg-float px-3 py-2 text-[13px] shadow-float ${
             toast.kind === "error" ? "border-danger/50 text-danger" : "border-line"
           }`}
         >
