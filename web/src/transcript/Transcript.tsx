@@ -112,7 +112,7 @@ function BranchSwitcher({
     if (target) ctx.actions.switchTo?.(target.id);
   };
   return (
-    <span className="-ml-1.5 mr-1 inline-flex items-center font-mono text-[11px] text-fg-faint">
+    <span className="-ml-0.5 mr-1 inline-flex items-center font-mono text-[11px] text-fg-faint">
       <button
         type="button"
         aria-label="Previous branch"
@@ -201,7 +201,7 @@ function Thinking({ text, streaming }: { text: string; streaming: boolean }) {
         {streaming ? <Spinner label={null} className="text-running" /> : null}
       </button>
       {open ? (
-        <div className="ml-4 mt-1 whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] italic text-fg-muted">
+        <div className="ml-5 mt-1 whitespace-pre-wrap border-l-2 border-line pl-3 text-[13px] italic text-fg-muted">
           {text}
         </div>
       ) : null}
@@ -269,7 +269,7 @@ function AssistantTurn({
       {message.stopReason === "error" ? <FailedTurn message={message} ctx={ctx} /> : null}
       {!streaming && isEmptyReply(message) ? <EmptyReply message={message} ctx={ctx} /> : null}
       {message.stopReason === "aborted" ? (
-        <p className="flex items-center gap-1.5 pt-1 text-[12px] text-fg-muted">
+        <p className="flex items-center gap-2 pt-1 text-[12px] text-fg-muted">
           <Icon name="stop" size={12} /> Stopped
         </p>
       ) : null}
@@ -323,7 +323,7 @@ function FailedTurn({ message, ctx }: { message: AssistantMessage; ctx: Context 
   const latest = ctx.lastMessage === message && !ctx.isStreaming;
   if (!latest) {
     return (
-      <p className="flex items-start gap-1.5 pt-1 text-[12px] text-fg-muted">
+      <p className="flex items-start gap-2 pt-1 text-[12px] text-fg-muted">
         <Icon name="alert" size={12} className="mt-0.5 shrink-0 text-danger" />
         <span className="min-w-0 [overflow-wrap:anywhere]">Request failed: {text}</span>
       </p>
@@ -420,7 +420,7 @@ function BashTurn({
         ) : null}
       </button>
       {open && output ? (
-        <pre className="ml-4 mt-1 max-h-80 overflow-auto whitespace-pre-wrap border-l-2 border-line pl-3 font-mono text-[12px] text-fg-muted">
+        <pre className="ml-5 mt-1 max-h-80 overflow-auto whitespace-pre-wrap border-l-2 border-line pl-3 font-mono text-[12px] text-fg-muted">
           {output}
         </pre>
       ) : null}
