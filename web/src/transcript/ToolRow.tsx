@@ -160,7 +160,7 @@ export function ToolRow({
         </span>
       </button>
       {expanded ? (
-        <div className="mb-2 ml-4 mt-1 space-y-2">
+        <div className="mb-2 ml-5 mt-1 space-y-2">
           {summary.diff && status !== "error" ? (
             <DiffView diff={summary.diff} maxLines={400} />
           ) : null}
