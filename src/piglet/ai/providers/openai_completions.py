@@ -3,8 +3,7 @@
 Ports the request shape and the ``compat`` flags from Pi's adapter that the bundled catalog
 uses: ``supportsDeveloperRole``, ``supportsStore``, ``maxTokensField``,
 ``supportsUsageInStreaming``, ``supportsReasoningEffort``, ``thinkingFormat`` (``openai``,
-``openrouter``, ``qwen``, ``deepseek``, ``zai``, ``together``) and
-``requiresReasoningContentOnAssistantMessages``.
+``openrouter``, ``deepseek``, ``zai``) and ``requiresReasoningContentOnAssistantMessages``.
 """
 
 from __future__ import annotations
@@ -105,10 +104,6 @@ def _format_zai(body: dict[str, Any], effort: object, _level_map: dict[str, Any]
     )
 
 
-def _format_qwen(body: dict[str, Any], effort: object, _level_map: dict[str, Any]) -> None:
-    body["enable_thinking"] = bool(effort)
-
-
 def _format_deepseek(body: dict[str, Any], effort: object, level_map: dict[str, Any]) -> None:
     if effort:
         body["thinking"] = {"type": "enabled"}
@@ -123,16 +118,10 @@ def _format_openrouter(body: dict[str, Any], effort: object, level_map: dict[str
         body["reasoning"] = {"effort": level_map.get("off") or "none"}
 
 
-def _format_together(body: dict[str, Any], effort: object, _level_map: dict[str, Any]) -> None:
-    body["reasoning"] = {"enabled": bool(effort)}
-
-
 _THINKING_FORMATS = {
     "zai": _format_zai,
-    "qwen": _format_qwen,
     "deepseek": _format_deepseek,
     "openrouter": _format_openrouter,
-    "together": _format_together,
 }
 
 

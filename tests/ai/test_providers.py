@@ -211,9 +211,7 @@ class OpenAICompletionsTest(unittest.TestCase):
         adapter = OpenAICompletionsAdapter()
         cases = {
             "openrouter": ("reasoning", {"effort": "low"}),
-            "qwen": ("enable_thinking", True),
             "zai": ("thinking", {"type": "enabled", "clear_thinking": False}),
-            "together": ("reasoning", {"enabled": True}),
         }
         for fmt, (key, expected) in cases.items():
             model = make_model(

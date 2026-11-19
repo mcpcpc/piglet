@@ -2,7 +2,7 @@
 
 Downloads the pinned ``@earendil-works/pi-ai`` npm tarball, reads only its JSON data files
 (``package/dist/providers/data/*.json``; no package code is executed) and writes the chat models
-as one flat, sorted list.
+of :data:`SHIPPED_PROVIDERS` as one flat, sorted list.
 
 Usage: ``python scripts/sync_catalog.py [version]``
 """
@@ -21,6 +21,38 @@ PI_AI_VERSION = "1.5.2"
 REGISTRY_URL = "https://registry.npmjs.org/@earendil-works/pi-ai/-/pi-ai-{version}.tgz"
 DATA_PREFIX = "package/dist/providers/data/"
 OUTPUT = Path(__file__).resolve().parent.parent / "src" / "piglet" / "ai" / "catalog.json"
+
+# The Pi providers piglet ships. Pi keeps adding providers (regional endpoints, token plans, smaller
+# hosts); each one here is a deliberate choice, and needs a name in piglet.config.providers too.
+SHIPPED_PROVIDERS = frozenset(
+    {
+        "amazon-bedrock",
+        "anthropic",
+        "azure",
+        "cerebras",
+        "cloudflare-ai-gateway",
+        "cloudflare-workers-ai",
+        "deepseek",
+        "github-copilot",
+        "google",
+        "google-vertex",
+        "groq",
+        "huggingface",
+        "kimi-coding",
+        "meta",
+        "mistral",
+        "moonshotai",
+        "nvidia",
+        "openai",
+        "openai-codex",
+        "opencode",
+        "openrouter",
+        "radius",
+        "vercel-ai-gateway",
+        "xai",
+        "zai",
+    }
+)
 
 
 def extract_models(tarball: bytes) -> list[dict]:
@@ -50,7 +82,7 @@ def main() -> None:
     version = sys.argv[1] if len(sys.argv) > 1 else PI_AI_VERSION
     response = httpx.get(REGISTRY_URL.format(version=version), follow_redirects=True, timeout=60)
     response.raise_for_status()
-    models = extract_models(response.content)
+    models = [m for m in extract_models(response.content) if m["provider"] in SHIPPED_PROVIDERS]
     document = {"source": f"@earendil-works/pi-ai@{version}", "models": models}
     OUTPUT.write_text(json.dumps(document, separators=(",", ":")) + "\n", encoding="utf-8")
     print(f"Wrote {len(models)} models to {OUTPUT}")

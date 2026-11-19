@@ -21,7 +21,7 @@ def rows(models=None, stored=None, env=None, logins=None):
 class ListRuleTest(unittest.TestCase):
     def test_default_list(self):
         by_id, order = rows()
-        self.assertEqual(len(order), 33)
+        self.assertEqual(len(order), 16)
         for absent in (
             "mistral",
             "google-vertex",
@@ -103,10 +103,10 @@ class SourcesTest(unittest.TestCase):
             "groq": {"type": "api_key", "key": "$UNSET_VAR"},
             "cerebras": {"type": "api_key", "key": "   "},
             "deepseek": {"type": "api_key"},
-            "fireworks": {"type": "api_key", "key": "!never-run-this"},
+            "nvidia": {"type": "api_key", "key": "!never-run-this"},
             "openai": {"type": "oauth", "access": "a", "expires": 1},
             "github-copilot": {"type": "oauth", "access": "a", "expires": NOW + 1},
-            "together": {"type": "mystery"},
+            "huggingface": {"type": "mystery"},
         }
         by_id, _ = rows(
             models={"providers": {"zai": {"apiKey": "${ZAI_SECRET}"}}},
@@ -120,10 +120,10 @@ class SourcesTest(unittest.TestCase):
                 "groq": "unresolved",
                 "cerebras": "blank",
                 "deepseek": "invalid",
-                "fireworks": None,
+                "nvidia": None,
                 "openai": None,
                 "github-copilot": None,
-                "together": "invalid",
+                "huggingface": "invalid",
                 "zai": "unresolved",
             },
         )
