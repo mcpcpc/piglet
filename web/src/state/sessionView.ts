@@ -216,8 +216,9 @@ export function reduce(view: SessionView, event: AgentEvent): Reduction {
         notice: { kind: "error", text: event.error },
       };
     case "message_start":
+      // A new reply means any automatic retry has begun, so stop showing "retrying".
       if (event.message.role === "assistant")
-        return { view: { ...view, streaming: event.message }, sync: [] };
+        return { view: { ...view, streaming: event.message, retry: null }, sync: [] };
       return { view, sync: [] };
     case "message_update":
       if (!view.streaming) return { view, sync: [] };

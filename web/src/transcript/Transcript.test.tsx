@@ -239,3 +239,26 @@ describe("rowContinuations", () => {
     expect(rowContinuations([a, result, user, reply([call])], true).size).toBe(0);
   });
 });
+
+describe("tool calls in a reply that failed", () => {
+  afterEach(cleanup);
+
+  it("show as failed rather than running while the agent retries", () => {
+    const base = (failed[1] as { message: AssistantMessage }).message;
+    const cut = {
+      ...base,
+      content: [{ type: "toolCall", id: "t9", name: "bash", arguments: { command: "ls" } }],
+      stopReason: "error",
+    } as AssistantMessage;
+    const entry: SessionEntry = {
+      type: "message",
+      id: "a1",
+      parentId: "u1",
+      timestamp: "2",
+      message: cut,
+    };
+    render(<Transcript entries={[...entries, entry]} leafId="a1" isStreaming />);
+    expect(screen.queryByRole("status", { name: "Running" })).toBeNull();
+    expect(screen.getByTitle("Failed")).toBeTruthy();
+  });
+});

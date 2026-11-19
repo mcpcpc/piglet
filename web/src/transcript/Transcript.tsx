@@ -213,11 +213,13 @@ function toolStatus(
   call: ToolCall & { partialJson?: string },
   ctx: Context,
   streaming: boolean,
+  ended = false,
 ): ToolStatus {
   const result = ctx.results.get(call.id);
   if (result) return result.isError ? "error" : "done";
   const live = ctx.tools[call.id];
   if (live) return live.status;
+  if (ended) return "error";
   if (streaming && call.partialJson !== undefined) return "pending";
   return ctx.isStreaming ? "running" : "error";
 }
@@ -250,7 +252,12 @@ function AssistantTurn({
           <ToolRow
             key={block.id}
             call={block}
-            status={toolStatus(block, ctx, streaming)}
+            status={toolStatus(
+              block,
+              ctx,
+              streaming,
+              message.stopReason === "error" || message.stopReason === "aborted",
+            )}
             result={result ?? live?.result}
             partial={live?.partial}
             durationMs={result?.durationMs ?? live?.durationMs}
