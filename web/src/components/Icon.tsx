@@ -65,6 +65,48 @@ export function Icon({
   );
 }
 
+/**
+ * The sidebar or drawer toggle glyph: a window whose `side` pane fills in, sliding from that
+ * edge like the panel itself, while the panel is open.
+ */
+export function PaneIcon({
+  side,
+  open,
+  size = 16,
+}: {
+  side: "left" | "right";
+  open: boolean;
+  size?: number;
+}) {
+  const left = side === "left";
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 16 16"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.4}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="shrink-0"
+      aria-hidden="true"
+    >
+      <rect
+        x={left ? 2.5 : 10}
+        y={3.5}
+        width={3.5}
+        height={9}
+        fill="currentColor"
+        stroke="none"
+        data-pane={open ? "open" : "closed"}
+        className={`transition-transform duration-200 ease-out [transform-box:fill-box] ${left ? "origin-left" : "origin-right"} ${open ? "scale-x-100" : "scale-x-0"}`}
+      />
+      <path d={PATHS[left ? "sidebar" : "panel"]} />
+    </svg>
+  );
+}
+
 /** A spinning ring announced as `label`; pass `label={null}` when nearby text already says it. */
 export function Spinner({
   className = "",

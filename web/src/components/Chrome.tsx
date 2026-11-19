@@ -5,7 +5,7 @@ import { shortcutLabel } from "../lib/native";
 import type { SessionView } from "../state/sessionView";
 import { reportError, request, toast, ui, useApp } from "../state/store";
 import { ExtensionSurfaces } from "./ExtensionDialogs";
-import { Icon, Spinner } from "./Icon";
+import { Icon, PaneIcon, Spinner } from "./Icon";
 
 export function SessionHeader({ view }: { view: SessionView | null }) {
   const sidebarOpen = useApp((s) => s.sidebarOpen);
@@ -16,25 +16,15 @@ export function SessionHeader({ view }: { view: SessionView | null }) {
     <header
       className={`titlebar flex h-11 shrink-0 items-center gap-2 border-b border-line ${inset}`}
     >
-      {!sidebarOpen ? (
-        <button
-          type="button"
-          onClick={() => ui.sidebar(true)}
-          className="rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:p-2.5"
-          aria-label="Show sidebar"
-        >
-          <Icon name="sidebar" />
-        </button>
-      ) : (
-        <button
-          type="button"
-          onClick={() => ui.sidebar(false)}
-          className="rounded p-1 text-fg-faint hover:bg-hover max-lg:hidden"
-          aria-label="Hide sidebar"
-        >
-          <Icon name="sidebar" />
-        </button>
-      )}
+      {/* One button for both states, so the icon stays mounted and animates. */}
+      <button
+        type="button"
+        onClick={() => ui.sidebar(!sidebarOpen)}
+        className={`rounded p-1 hover:bg-hover ${sidebarOpen ? "text-fg-faint max-lg:hidden" : "text-fg-muted pointer-coarse:p-2.5"}`}
+        aria-label={sidebarOpen ? "Hide sidebar" : "Show sidebar"}
+      >
+        <PaneIcon side="left" open={sidebarOpen} />
+      </button>
       {view ? (
         <div className="flex min-w-0 items-center gap-1.5 text-[13px]">
           <span className="truncate text-fg-muted max-sm:hidden">{basename(view.state.cwd)}</span>
@@ -53,27 +43,30 @@ export function SessionHeader({ view }: { view: SessionView | null }) {
         <span className="text-[13px] text-fg-muted">No session</span>
       )}
       <div className="ml-auto flex items-center gap-1">
+        {/* The tree and the drawer both belong to a session, so they show only with one open. */}
         {view ? (
-          <button
-            type="button"
-            onClick={() => ui.tree(true)}
-            className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:py-2.5"
-            title={`Session tree (${shortcutLabel("T")})`}
-            aria-label="Session tree"
-          >
-            <Icon name="branch" size={14} />
-            <span className="max-sm:hidden">Tree</span>
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={() => ui.tree(true)}
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-[12px] text-fg-muted hover:bg-hover hover:text-fg pointer-coarse:py-2.5"
+              title={`Session tree (${shortcutLabel("T")})`}
+              aria-label="Session tree"
+            >
+              <Icon name="branch" size={14} />
+              <span className="max-sm:hidden">Tree</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => ui.drawer(!drawerOpen)}
+              className={`rounded-md p-1.5 hover:bg-hover pointer-coarse:p-2.5 ${drawerOpen ? "text-fg-faint" : "text-fg-muted"}`}
+              aria-label="Toggle changes and bash drawer"
+              title={`Changes & bash (${shortcutLabel("J")})`}
+            >
+              <PaneIcon side="right" open={drawerOpen} size={15} />
+            </button>
+          </>
         ) : null}
-        <button
-          type="button"
-          onClick={() => ui.drawer(!drawerOpen)}
-          className={`rounded-md p-1.5 hover:bg-hover pointer-coarse:p-2.5 ${drawerOpen ? "text-fg" : "text-fg-muted"}`}
-          aria-label="Toggle changes and bash drawer"
-          title={`Changes & bash (${shortcutLabel("J")})`}
-        >
-          <Icon name="panel" size={15} />
-        </button>
       </div>
     </header>
   );

@@ -50,7 +50,7 @@ export function useHotkeys() {
       const actions: Record<string, () => void> = {
         k: () => ui.palette(!state.paletteOpen),
         t: () => state.activeId && ui.tree(!state.treeOpen),
-        j: () => ui.drawer(!state.drawerOpen),
+        j: () => state.activeId && ui.drawer(!state.drawerOpen),
         b: () => ui.sidebar(!state.sidebarOpen),
         p: () => state.activeId && void cycleModel(event.shiftKey ? -1 : 1).catch(reportError),
         ".": () => ui.toggleThinking(),
