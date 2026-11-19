@@ -1,7 +1,7 @@
 {
   "name": "piglet-desktop",
   "private": true,
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "piglet desktop shell",
   "homepage": "https://github.com/mcpcpc/piglet",
   "main": "out/main.js",
