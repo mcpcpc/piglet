@@ -74,3 +74,15 @@ describe("Sidebar as an off-canvas panel", () => {
     expect(openSessionFile).toHaveBeenCalledWith("/s/one.jsonl");
   });
 });
+
+describe("before the project list arrives", () => {
+  it("does not claim there are no projects", () => {
+    useApp.setState({ projects: [], projectsLoaded: false });
+    render(<Sidebar />);
+    expect(screen.queryByText("Open a project folder to start.")).toBeNull();
+    cleanup();
+    useApp.setState({ projectsLoaded: true });
+    render(<Sidebar />);
+    expect(screen.getByText("Open a project folder to start.")).toBeTruthy();
+  });
+});

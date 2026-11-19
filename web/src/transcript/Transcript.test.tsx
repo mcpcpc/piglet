@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantMessage, SessionEntry } from "../protocol/types";
-import { Transcript, workingLabel } from "./Transcript";
+import { isEmptyReply, rowContinuations, Transcript, workingLabel } from "./Transcript";
 
 const entries: SessionEntry[] = [
   {
@@ -141,5 +141,124 @@ describe("workingLabel", () => {
     render(<Transcript entries={entries} leafId="u1" isStreaming />);
     expect(screen.getByRole("status").textContent).toBe("Working…");
     cleanup();
+  });
+});
+
+describe("user shell commands", () => {
+  afterEach(cleanup);
+
+  it("keep the latest command's output open after it finishes", () => {
+    const ran: SessionEntry = {
+      type: "message",
+      id: "b1",
+      parentId: "u1",
+      timestamp: "2",
+      message: {
+        role: "bashExecution",
+        command: "git status",
+        output: "nothing to commit",
+        exitCode: 0,
+        cancelled: false,
+        truncated: false,
+        timestamp: 1,
+      },
+    };
+    render(<Transcript entries={[...entries, ran]} leafId="b1" />);
+    expect(screen.getByText("nothing to commit")).toBeTruthy();
+  });
+});
+
+describe("thinking", () => {
+  afterEach(cleanup);
+  const base = (failed[1] as { message: AssistantMessage }).message;
+  const reply = (content: AssistantMessage["content"], stopReason = "stop") =>
+    ({ ...base, content, stopReason, errorMessage: undefined }) as AssistantMessage;
+  const entry = (message: AssistantMessage): SessionEntry => ({
+    type: "message",
+    id: "a1",
+    parentId: "u1",
+    timestamp: "2",
+    message,
+  });
+
+  it("keeps the Thought label and shows a spinner while reasoning streams", () => {
+    render(
+      <Transcript
+        entries={entries}
+        leafId="u1"
+        isStreaming
+        streaming={reply([{ type: "thinking", thinking: "Let me see" }])}
+      />,
+    );
+    const toggle = screen.getByRole("button", { name: "Thought" });
+    expect(toggle.getAttribute("aria-busy")).toBe("true");
+    expect(screen.queryByText("Thinking…")).toBeNull();
+  });
+
+  it("explains a reply that stopped after thinking, with Retry on the latest", () => {
+    const retry = vi.fn();
+    const empty = reply([{ type: "thinking", thinking: "Hmm" }]);
+    render(<Transcript entries={[...entries, entry(empty)]} leafId="a1" actions={{ retry }} />);
+    expect(screen.getByText("The model stopped after thinking without replying.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
+  it("only counts finished replies with no text and no tool calls", () => {
+    expect(isEmptyReply(reply([{ type: "thinking", thinking: "x" }]))).toBe(true);
+    expect(isEmptyReply(reply([{ type: "text", text: "  " }]))).toBe(true);
+    expect(isEmptyReply(reply([{ type: "text", text: "Hi" }]))).toBe(false);
+    expect(isEmptyReply(reply([{ type: "thinking", thinking: "x" }], "error"))).toBe(false);
+  });
+});
+
+describe("rowContinuations", () => {
+  const base = (failed[1] as { message: AssistantMessage }).message;
+  const reply = (content: AssistantMessage["content"]) =>
+    ({ ...base, content, stopReason: "toolUse" }) as AssistantMessage;
+  const call = { type: "toolCall" as const, id: "1", name: "bash", arguments: {} };
+  const result = {
+    role: "toolResult" as const,
+    toolCallId: "1",
+    toolName: "bash",
+    content: [],
+    isError: false,
+    timestamp: 0,
+  };
+  const user = { role: "user" as const, content: "hi", timestamp: 0 };
+
+  it("keeps rows evenly spaced across replies but gives text its usual gap", () => {
+    const a = reply([{ type: "thinking", thinking: "plan" }, call]);
+    const b = reply([{ type: "thinking", thinking: "next" }, call]);
+    const prose = reply([{ type: "text", text: "Done." }]);
+    expect([...rowContinuations([user, a, result, b, result, prose], true)]).toEqual([b]);
+  });
+
+  it("starts fresh after a user message", () => {
+    const a = reply([call]);
+    expect(rowContinuations([a, result, user, reply([call])], true).size).toBe(0);
+  });
+});
+
+describe("tool calls in a reply that failed", () => {
+  afterEach(cleanup);
+
+  it("show as failed rather than running while the agent retries", () => {
+    const base = (failed[1] as { message: AssistantMessage }).message;
+    const cut = {
+      ...base,
+      content: [{ type: "toolCall", id: "t9", name: "bash", arguments: { command: "ls" } }],
+      stopReason: "error",
+    } as AssistantMessage;
+    const entry: SessionEntry = {
+      type: "message",
+      id: "a1",
+      parentId: "u1",
+      timestamp: "2",
+      message: cut,
+    };
+    render(<Transcript entries={[...entries, entry]} leafId="a1" isStreaming />);
+    expect(screen.queryByRole("status", { name: "Running" })).toBeNull();
+    expect(screen.getByTitle("Failed")).toBeTruthy();
   });
 });

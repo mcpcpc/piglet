@@ -35,3 +35,17 @@ export function basename(path: string): string {
 export function shortPath(path: string, home?: string): string {
   return home && path.startsWith(home) ? `~${path.slice(home.length)}` : path;
 }
+
+/** `path` relative to `cwd` when it lies inside it; otherwise unchanged. */
+export function relativePath(path: string, cwd?: string): string {
+  if (cwd && (path.startsWith(`${cwd}/`) || path.startsWith(`${cwd}\\`))) {
+    return path.slice(cwd.length + 1);
+  }
+  return path;
+}
+
+/** Split a path into its directory (with trailing separator, or "") and its last segment. */
+export function splitPath(path: string): { dir: string; name: string } {
+  const cut = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\")) + 1;
+  return { dir: path.slice(0, cut), name: path.slice(cut) };
+}

@@ -9,12 +9,15 @@
 //   a whole file        → FileEditor, with an explicit Save
 
 import {
+  createContext,
   type KeyboardEvent,
   type MutableRefObject,
   type ReactNode,
   useCallback,
+  useContext,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -61,8 +64,23 @@ function clearAll(timers: MutableRefObject<number[]>): void {
   timers.current = [];
 }
 
-/** Tracks one row's save: Saving… after a moment, then Saved for two seconds, or the error. */
-export function useSaveStatus(): {
+/**
+ * Where rows inside a dialog report their saves, so the dialog shows one status in its header
+ * instead of each row inserting "Saved" under its label (which shifted everything below it).
+ */
+export interface SaveReporter {
+  begin: () => void;
+  end: (ok: boolean) => void;
+}
+
+export const SaveReporterContext = createContext<SaveReporter | null>(null);
+
+/**
+ * Tracks one row's save. Inside a SaveReporterContext the row keeps only its error (Saving… and
+ * Saved go to the dialog header); `local` keeps everything in the row, for explicit Save buttons.
+ * Without a reporter: Saving… after a moment, then Saved for two seconds, or the error.
+ */
+export function useSaveStatus({ local = false }: { local?: boolean } = {}): {
   status: SaveStatus;
   track: (work: () => Promise<unknown>) => Promise<boolean>;
   invalid: (message: string) => void;
@@ -70,23 +88,40 @@ export function useSaveStatus(): {
 } {
   const [status, setStatus] = useState<SaveStatus>(IDLE);
   const timers = useRef<number[]>([]);
+  const context = useContext(SaveReporterContext);
+  const reporter = local ? null : context;
   useEffect(() => () => clearAll(timers), []);
-  const track = useCallback(async (work: () => Promise<unknown>) => {
-    clearAll(timers);
-    setStatus(IDLE);
-    timers.current.push(window.setTimeout(() => setStatus({ kind: "saving" }), SLOW_SAVE_MS));
-    try {
-      await work();
+  const track = useCallback(
+    async (work: () => Promise<unknown>) => {
       clearAll(timers);
-      setStatus({ kind: "saved" });
-      timers.current.push(window.setTimeout(() => setStatus(IDLE), SAVED_MS));
-      return true;
-    } catch (error) {
-      clearAll(timers);
-      setStatus({ kind: "error", message: reasonText(error) });
-      return false;
-    }
-  }, []);
+      setStatus(IDLE);
+      if (reporter) {
+        reporter.begin();
+        try {
+          await work();
+          reporter.end(true);
+          return true;
+        } catch (error) {
+          reporter.end(false);
+          setStatus({ kind: "error", message: reasonText(error) });
+          return false;
+        }
+      }
+      timers.current.push(window.setTimeout(() => setStatus({ kind: "saving" }), SLOW_SAVE_MS));
+      try {
+        await work();
+        clearAll(timers);
+        setStatus({ kind: "saved" });
+        timers.current.push(window.setTimeout(() => setStatus(IDLE), SAVED_MS));
+        return true;
+      } catch (error) {
+        clearAll(timers);
+        setStatus({ kind: "error", message: reasonText(error) });
+        return false;
+      }
+    },
+    [reporter],
+  );
   const invalid = useCallback((message: string) => {
     clearAll(timers);
     setStatus({ kind: "invalid", message });
@@ -98,8 +133,22 @@ export function useSaveStatus(): {
   return { status, track, invalid, reset };
 }
 
-/** The status line. It is always rendered, so screen readers announce what appears in it. */
+/**
+ * The status line. Errors are alerts; otherwise it is a status region that is always rendered, so
+ * screen readers announce what appears in it.
+ */
 export function StatusText({ status, id }: { status: SaveStatus; id?: string }) {
+  if (status.kind === "error" || status.kind === "invalid")
+    return (
+      <span id={id} role="alert" className="mt-0.5 text-[11px]">
+        <span className="inline-flex items-baseline gap-1 text-danger">
+          <Icon name="alert" size={12} className="self-center" />
+          <span className="[overflow-wrap:anywhere]">
+            {status.kind === "error" ? `Couldn't save. ${status.message}` : status.message}
+          </span>
+        </span>
+      </span>
+    );
   let content: ReactNode = null;
   if (status.kind === "saving")
     content = (
@@ -117,20 +166,99 @@ export function StatusText({ status, id }: { status: SaveStatus; id?: string }) 
         Saved
       </span>
     );
-  else if (status.kind === "error" || status.kind === "invalid")
-    content = (
-      <span className="inline-flex items-baseline gap-1 text-danger">
-        <Icon name="alert" size={12} className="self-center" />
-        <span className="[overflow-wrap:anywhere]">
-          {status.kind === "error" ? `Couldn't save. ${status.message}` : status.message}
-        </span>
-      </span>
-    );
   return (
     <span id={id} role="status" className="text-[11px] [&:not(:empty)]:mt-0.5">
       {content}
     </span>
   );
+}
+
+/** How long the header's "Saved" stays, and its fade-out (the fade-in is 150ms). */
+export const HEADER_SAVED_MS = 1500;
+const HEADER_FADE_OUT_MS = 300;
+
+type HeaderSave = "idle" | "saving" | "saved" | "failed";
+
+/**
+ * One save status for a whole dialog, shown in its header: "Saving…" for slow saves, then "Saved"
+ * for 1.5s; a new save while "Saved" shows keeps it up instead of flickering. After a failed save
+ * it says "Not saved" until a later save succeeds (the error itself stays at the row).
+ */
+export function useDialogSaveStatus(): {
+  reporter: SaveReporter;
+  indicator: ReactNode;
+  reset: () => void;
+} {
+  const [state, setState] = useState<HeaderSave>("idle");
+  const [visible, setVisible] = useState(false);
+  const pending = useRef(0);
+  const failed = useRef(false);
+  const timers = useRef<number[]>([]);
+  useEffect(() => () => clearAll(timers), []);
+  const reporter = useMemo<SaveReporter>(() => {
+    const show = (next: HeaderSave) => {
+      setState(next);
+      setVisible(true);
+    };
+    return {
+      begin: () => {
+        pending.current += 1;
+        clearAll(timers);
+        timers.current.push(
+          window.setTimeout(() => {
+            if (pending.current > 0 && !failed.current) show("saving");
+          }, SLOW_SAVE_MS),
+        );
+      },
+      end: (ok) => {
+        pending.current = Math.max(0, pending.current - 1);
+        failed.current = !ok;
+        if (pending.current > 0) return;
+        clearAll(timers);
+        if (!ok) {
+          show("failed");
+          return;
+        }
+        show("saved");
+        timers.current.push(window.setTimeout(() => setVisible(false), HEADER_SAVED_MS));
+        timers.current.push(
+          window.setTimeout(() => setState("idle"), HEADER_SAVED_MS + HEADER_FADE_OUT_MS),
+        );
+      },
+    };
+  }, []);
+  const reset = useCallback(() => {
+    clearAll(timers);
+    pending.current = 0;
+    failed.current = false;
+    setVisible(false);
+    setState("idle");
+  }, []);
+  let content: ReactNode = null;
+  if (state === "saving")
+    content = (
+      <>
+        <Spinner label={null} />
+        Saving…
+      </>
+    );
+  else if (state === "saved")
+    content = (
+      <>
+        <Icon name="check" size={12} className="text-add-fg" />
+        Saved
+      </>
+    );
+  else if (state === "failed") content = <span className="text-danger">Not saved</span>;
+  const indicator = (
+    <span
+      role="status"
+      className={`flex items-center gap-1 text-[11px] text-fg-muted transition-opacity ${visible ? "opacity-100 duration-150" : "opacity-0 duration-300"}`}
+    >
+      {content}
+    </span>
+  );
+  return { reporter, indicator, reset };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -166,11 +294,24 @@ export interface RowIds {
   control: string;
   label: string;
   hint: string;
+  /** The row's error message, when it has one. */
+  error: string;
 }
 
 export function useRowIds(): RowIds {
   const id = useId();
-  return { control: `${id}-control`, label: `${id}-label`, hint: `${id}-hint` };
+  return {
+    control: `${id}-control`,
+    label: `${id}-label`,
+    hint: `${id}-hint`,
+    error: `${id}-error`,
+  };
+}
+
+/** What a row's control is described by: its hint, and its error while it has one. */
+function describedByIds(ids: RowIds, hint: ReactNode, status: SaveStatus): string | undefined {
+  const failed = status.kind === "error" || status.kind === "invalid";
+  return [hint ? ids.hint : null, failed ? ids.error : null].filter(Boolean).join(" ") || undefined;
 }
 
 /**
@@ -225,7 +366,7 @@ export function Row({
           {hint}
         </span>
       ) : null}
-      <StatusText status={status} />
+      {status.kind === "idle" ? null : <StatusText status={status} id={ids.error} />}
     </>
   );
   const textClass = `flex min-w-0 flex-col ${layout === "stacked" ? "" : "flex-1"}`;
@@ -505,7 +646,7 @@ export function SwitchSetting({
         checked={shown}
         disabled={disabled}
         labelledBy={ids.label}
-        describedBy={hint ? ids.hint : undefined}
+        describedBy={describedByIds(ids, hint, status)}
         onChange={(next) => void change(next, toPatch(saveAs, next))}
       />
     </Row>
@@ -530,7 +671,7 @@ export function ChoiceSetting<T extends string>({
         value={shown}
         disabled={disabled}
         labelledBy={ids.label}
-        describedBy={hint ? ids.hint : undefined}
+        describedBy={describedByIds(ids, hint, status)}
         onChange={(next) => void change(next, toPatch(saveAs, next))}
         className="max-sm:flex max-sm:w-full"
       />
@@ -556,7 +697,7 @@ export function SelectSetting({
         value={shown}
         disabled={disabled}
         labelledBy={ids.label}
-        describedBy={hint ? ids.hint : undefined}
+        describedBy={describedByIds(ids, hint, status)}
         onChange={(next) => void change(next, toPatch(saveAs, next))}
       >
         {children}
@@ -607,7 +748,7 @@ export function TextSetting({
         multiline={multiline}
         disabled={disabled}
         labelledBy={ids.label}
-        describedBy={hint ? ids.hint : undefined}
+        describedBy={describedByIds(ids, hint, status)}
         className={`${inputClass} font-mono ${multiline ? "h-24" : ""}`}
       />
     </Row>
@@ -638,7 +779,7 @@ export function NumberSetting({
     );
     return ok ? "saved" : "failed";
   };
-  const describedBy = [unitId, hint ? ids.hint : null].filter(Boolean).join(" ");
+  const describedBy = [unitId, describedByIds(ids, hint, status)].filter(Boolean).join(" ");
   return (
     <Row ids={ids} label={label} hint={hint} status={status} disabled={disabled} labelTarget>
       <span className="flex items-center gap-2">
@@ -684,7 +825,7 @@ export function FileEditor({
   const id = useId();
   const [text, setText] = useState(initial);
   const [busy, setBusy] = useState(false);
-  const { status, track, reset } = useSaveStatus();
+  const { status, track, reset } = useSaveStatus({ local: true });
   useEffect(() => setText(initial), [initial]);
   const dirty = text !== initial;
   const save = async () => {

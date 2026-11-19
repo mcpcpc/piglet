@@ -114,6 +114,14 @@ describe("reduce", () => {
     expect(ended.notice?.kind).toBe("error");
   });
 
+  it("stops showing a retry once the retried reply starts", () => {
+    let view = reduce(createView(state), { type: "agent_start" }).view;
+    view = reduce(view, { type: "auto_retry_start", attempt: 1, maxAttempts: 3, delayMs: 10 }).view;
+    expect(view.retry?.attempt).toBe(1);
+    view = reduce(view, { type: "message_start", message: assistant }).view;
+    expect(view.retry).toBeNull();
+  });
+
   it("returns editor text on tree navigation", () => {
     const result = reduce(createView(state), {
       type: "tree_navigated",

@@ -243,7 +243,7 @@ export function Composer({ view }: { view: SessionView }) {
       >
         {token && items.length ? (
           <div
-            className="absolute bottom-full left-0 z-20 mb-1 max-h-72 w-full overflow-y-auto rounded-lg border border-line bg-bg p-1 shadow-xl"
+            className="absolute bottom-full left-0 z-20 mb-1 max-h-72 w-full overflow-y-auto rounded-lg border border-line bg-float p-1 shadow-float"
             role="listbox"
           >
             {items.map((item, index) => (

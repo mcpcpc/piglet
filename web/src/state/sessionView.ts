@@ -41,6 +41,8 @@ export interface SessionView {
   id: string;
   state: SessionState;
   header: SessionHeader | null;
+  /** Whether entries have been fetched at least once (until then, empty is not "new"). */
+  loaded: boolean;
   entries: SessionEntry[];
   leafId: string | null;
   /** Messages finished by the agent but not yet fetched as entries. */
@@ -70,6 +72,7 @@ export function createView(state: SessionState): SessionView {
     id: state.sessionId,
     state,
     header: null,
+    loaded: false,
     entries: [],
     leafId: state.leafId,
     provisional: [],
@@ -213,8 +216,9 @@ export function reduce(view: SessionView, event: AgentEvent): Reduction {
         notice: { kind: "error", text: event.error },
       };
     case "message_start":
+      // A new reply means any automatic retry has begun, so stop showing "retrying".
       if (event.message.role === "assistant")
-        return { view: { ...view, streaming: event.message }, sync: [] };
+        return { view: { ...view, streaming: event.message, retry: null }, sync: [] };
       return { view, sync: [] };
     case "message_update":
       if (!view.streaming) return { view, sync: [] };
@@ -296,7 +300,7 @@ export function applyEntries(
     ? [...view.entries, ...data.entries.filter((entry) => !known.has(entry.id))]
     : data.entries;
   const provisional = view.provisional.filter((item) => item.seq > seqAtRequest);
-  return { ...view, header: data.header, entries, leafId: data.leafId, provisional };
+  return { ...view, header: data.header, loaded: true, entries, leafId: data.leafId, provisional };
 }
 
 /** Clear live tool state once their results are persisted and the agent is idle. */

@@ -13,6 +13,7 @@ export function Modal({
   onEscapeKeyDown,
   className = "",
   bodyClassName = "overflow-y-auto p-4",
+  status,
 }: {
   open: boolean;
   onClose: () => void;
@@ -28,11 +29,13 @@ export function Modal({
   className?: string;
   /** Classes for the body under the title bar; it scrolls by default. */
   bodyClassName?: string;
+  /** Live status in the title bar, between the title and the close button (e.g. "Saved"). */
+  status?: ReactNode;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-x-0 bottom-0 top-(--titlebar-bottom) z-40 bg-black/30" />
+        <Dialog.Overlay className="fixed inset-x-0 bottom-0 top-(--titlebar-bottom) z-40 bg-scrim" />
         <Dialog.Content
           onEscapeKeyDown={onEscapeKeyDown}
           {...(description ? {} : { "aria-describedby": undefined })}
@@ -41,12 +44,13 @@ export function Modal({
             event.preventDefault();
             initialFocus.current.focus();
           }}
-          className={`fixed left-1/2 top-[10dvh] z-50 flex max-h-[80dvh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-lg border border-line bg-bg shadow-xl max-sm:top-[calc(var(--titlebar-bottom)+0.5rem)] max-sm:max-h-[calc(100dvh-1rem-var(--titlebar-bottom))] max-sm:w-[calc(100vw-1rem)] ${className}`}
+          className={`fixed left-1/2 top-[10dvh] z-50 flex max-h-[80dvh] w-[calc(100vw-2rem)] ${width} -translate-x-1/2 flex-col rounded-lg border border-line bg-bg shadow-float max-sm:top-[calc(var(--titlebar-bottom)+0.5rem)] max-sm:max-h-[calc(100dvh-1rem-var(--titlebar-bottom))] max-sm:w-[calc(100vw-1rem)] ${className}`}
         >
           <div className="flex items-center border-b border-line px-4 py-3">
             <Dialog.Title className="text-[14px] font-semibold">{title}</Dialog.Title>
+            {status ? <div className="ml-auto mr-2 flex items-center">{status}</div> : null}
             <Dialog.Close
-              className="-my-1 ml-auto flex items-center justify-center rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:-my-2.5 pointer-coarse:size-11"
+              className={`-my-1 flex items-center justify-center rounded p-1 text-fg-muted hover:bg-hover pointer-coarse:-my-2.5 pointer-coarse:size-11 ${status ? "" : "ml-auto"}`}
               aria-label="Close"
             >
               <Icon name="close" size={14} />

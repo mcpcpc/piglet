@@ -166,6 +166,24 @@ class PromptTest(SessionCase):
         users = [m for m in session.file.context().messages if m["role"] == "user"]
         self.assertEqual(len(users), 1)
 
+    def test_retry_asks_again_after_a_reply_with_no_text_or_tools(self):
+        client = ScriptedClient([text_reply(""), text_reply("ok")])
+        session = self.manager(client).new_session(self.cwd)
+        events = []
+        session.subscribe(events.append)
+        self.run_prompt(session, "x")
+
+        async def go():
+            session.retry()
+            await session.wait_idle()
+
+        asyncio.run(go())
+        self.assertIn("tree_navigated", [e["type"] for e in events])
+        roles = [m["role"] for m in session.file.context().messages]
+        self.assertEqual(roles, ["user", "assistant"])
+        self.assertEqual(session.last_assistant_text(), "ok")
+        self.assertEqual(len(client.requests[1][1].messages), 1)
+
     def test_retry_refuses_when_busy_or_nothing_failed(self):
         client = ScriptedClient([text_reply("done"), text_reply("slow")], delay=0.05)
         session = self.manager(client).new_session(self.cwd)

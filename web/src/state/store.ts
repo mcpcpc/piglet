@@ -59,6 +59,8 @@ interface AppState {
   status: ConnectionStatus;
   hello: HelloInfo | null;
   projects: ProjectInfo[];
+  /** False until the first project list arrives, so nothing claims there are no projects. */
+  projectsLoaded: boolean;
   sessionsByProject: Record<string, SessionInfo[]>;
   expanded: Record<string, boolean>;
   views: Record<string, SessionView>;
@@ -130,6 +132,7 @@ const initial: AppState = {
   status: "closed",
   hello: null,
   projects: [],
+  projectsLoaded: false,
   sessionsByProject: {},
   expanded: {},
   views: {},
@@ -418,8 +421,44 @@ export async function openProject(cwd: string): Promise<void> {
 
 export async function refreshProjects(): Promise<void> {
   const projects = await request<ProjectInfo[]>("list_projects", {});
-  set({ projects });
+  const first = !get().projectsLoaded;
+  set({ projects, projectsLoaded: true });
+  if (first) restoreExpanded(projects);
 }
+
+const EXPANDED_KEY = "piglet:expanded";
+
+/**
+ * On the first project list, reopen the projects this browser had expanded, or else the most
+ * recently used one, and load their sessions so a returning user sees them straight away.
+ */
+function restoreExpanded(projects: ProjectInfo[]): void {
+  let saved: string[] | null = null;
+  try {
+    const raw = localStorage.getItem(EXPANDED_KEY);
+    saved = raw ? (JSON.parse(raw) as string[]) : null;
+  } catch {
+    saved = null;
+  }
+  const existing = projects.filter((p) => p.exists).map((p) => p.cwd);
+  const open = saved ? existing.filter((cwd) => saved.includes(cwd)) : existing.slice(0, 1);
+  if (!open.length) return;
+  set((s) => ({
+    expanded: { ...Object.fromEntries(open.map((cwd) => [cwd, true])), ...s.expanded },
+  }));
+  for (const cwd of open) void refreshSessions(cwd).catch(reportError);
+}
+
+// Remember which projects are expanded in this browser (a per-viewer convenience).
+useApp.subscribe((state, previous) => {
+  if (state.expanded === previous.expanded || !state.projectsLoaded) return;
+  const open = Object.keys(state.expanded).filter((cwd) => state.expanded[cwd]);
+  try {
+    localStorage.setItem(EXPANDED_KEY, JSON.stringify(open));
+  } catch {
+    // Storage can be unavailable (private mode); expansion then resets on reload.
+  }
+});
 
 export async function refreshSessions(cwd: string): Promise<void> {
   const sessions = await request<SessionInfo[]>("list_sessions", { cwd });
@@ -432,10 +471,24 @@ export async function refreshSettings(): Promise<void> {
   applyTheme(String(data.global.theme ?? "system"));
 }
 
+/** The --bg of each theme (styles.css), for the browser's toolbar tint. */
+const THEME_BG = { light: "#ffffff", dark: "#161616" } as const;
+const THEME_KEY = "piglet:theme";
+
+/** Apply the Theme setting, tint the browser toolbar to match, and remember it for public/theme.js. */
 export function applyTheme(theme: string): void {
   const root = document.documentElement;
-  if (theme === "light" || theme === "dark") root.dataset.theme = theme;
+  const explicit = theme === "light" || theme === "dark" ? theme : null;
+  if (explicit) root.dataset.theme = explicit;
   else delete root.dataset.theme;
+  for (const meta of document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]')) {
+    meta.content = THEME_BG[explicit ?? (meta.media.includes("dark") ? "dark" : "light")];
+  }
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    // Without storage an explicit theme still applies, just after settings load.
+  }
 }
 
 export function setDraft(id: string, text: string): void {

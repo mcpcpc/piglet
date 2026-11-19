@@ -1,7 +1,8 @@
 // Smaller dialogs: hotkeys, session info, folder picker, project trust and the model picker.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { formatCost, formatTokens } from "../lib/format";
+import { COARSE_POINTER, useMediaQuery } from "../lib/media";
 import { shortcutLabel } from "../lib/native";
 import {
   activeView,
@@ -221,10 +222,26 @@ export function TrustDialog() {
 export function ModelsDialog() {
   const open = useApp((s) => s.dialog === "models");
   const view = useApp((s) => (s.activeId ? s.views[s.activeId] : null));
+  // On touch, focus the list rather than the search field so the keyboard stays down.
+  const touch = useMediaQuery(COARSE_POINTER);
+  const body = useRef<HTMLDivElement>(null);
   if (!view) return null;
   return (
-    <Modal open={open} onClose={ui.close} title="Choose a model" width="max-w-md">
-      <ModelList sessionId={view.id} current={view.state.model} onDone={ui.close} />
+    <Modal
+      open={open}
+      onClose={ui.close}
+      title="Choose a model"
+      width="max-w-md"
+      initialFocus={touch ? body : undefined}
+    >
+      <div ref={body} tabIndex={-1} className="outline-none">
+        <ModelList
+          sessionId={view.id}
+          current={view.state.model}
+          onDone={ui.close}
+          autoFocus={!touch}
+        />
+      </div>
     </Modal>
   );
 }
