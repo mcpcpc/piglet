@@ -7,13 +7,29 @@ branchable sessions, context compaction, skills, prompt templates and extensions
 
 piglet runs as a local web app or as an Electron desktop app. It has no headless mode.
 
-## Quick start (web)
+> [!WARNING]
+> piglet gives the model tools that read, write and edit files and run shell commands with your
+> user account's permissions, and it does not ask before each call. Use it in projects you trust,
+> review what it does, and run it in a container or VM if you need isolation. See
+> [SECURITY.md](SECURITY.md) for the security model and how to report a vulnerability.
+
+## Install
+
+Installers for each release are on the [Releases](https://github.com/mcpcpc/piglet/releases) page:
+Windows (`.exe`), macOS on Apple Silicon (`.dmg`) and Linux (`.AppImage`, `.deb`). They are not
+code-signed yet, so Windows SmartScreen and macOS Gatekeeper warn on first launch.
+
+## Quick start (web, from source)
+
+You need Python 3.12 or newer and Node.js 22. On Windows, also install
+[Git for Windows](https://gitforwindows.org/): the agent's shell tool uses its Git Bash.
 
 ```bash
-python -m venv .venv
+python3 -m venv .venv              # Windows: py -m venv .venv
 source .venv/bin/activate          # Windows: .\.venv\Scripts\Activate.ps1
-pip install -e ".[dev]"
-npm --prefix web ci && npm --prefix web run build
+pip install -e .
+npm --prefix web ci
+npm --prefix web run build
 piglet                             # starts on 127.0.0.1 and opens your browser
 ```
 
@@ -74,9 +90,12 @@ extensions can import the standard library and piglet's own dependencies only.
 ## Development
 
 ```bash
-# Server for a Vite dev UI (prints {"event": "ready", "port": N}):
-PIGLET_TOKEN=dev PIGLET_DEV_ORIGIN=http://localhost:5173 python -m piglet.server
-VITE_PIGLET_URL=ws://127.0.0.1:N/ws VITE_PIGLET_TOKEN=dev npm --prefix web run dev
+# Server for a Vite dev UI (prints {"event": "ready", "port": N}). The token lets any local
+# process drive the agent, so use a random one rather than a fixed word:
+export PIGLET_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+PIGLET_DEV_ORIGIN=http://localhost:5173 python -m piglet.server
+# In a second terminal, with the same PIGLET_TOKEN exported:
+VITE_PIGLET_URL=ws://127.0.0.1:N/ws VITE_PIGLET_TOKEN="$PIGLET_TOKEN" npm --prefix web run dev
 
 # Desktop app against the local .venv:
 npm --prefix web run build && npm --prefix desktop ci && npm --prefix desktop run dev
@@ -89,11 +108,11 @@ pip install -e ".[build]" && python scripts/build_sidecar.py && npm --prefix des
 
 The CD workflow (`.github/workflows/cd.yml`) builds the installers for Windows (`.exe`), macOS
 (Apple Silicon `.dmg`) and Linux (`.AppImage`, `.deb`). To release, set the same version in
-`pyproject.toml`, `src/piglet/__init__.py`, `desktop/package.json` and `web/package.json`, merge,
-then push a matching tag:
+`pyproject.toml`, `src/piglet/__init__.py`, `desktop/package.json` and `web/package.json` (and
+the root `version` in both `package-lock.json` files), merge, then push a matching tag:
 
 ```bash
-git tag v0.2.0 && git push origin v0.2.0
+git tag vX.Y.Z && git push origin vX.Y.Z
 ```
 
 Or create the tag with the release itself, from **Create release** on GitHub's Releases page.
@@ -101,6 +120,11 @@ CD reruns the CI checks, confirms the tag matches the version, builds, and attac
 to that release. A tag pushed without a release gets a new **draft** release instead: try the
 installers, then publish it. Running CD by hand from the Actions tab builds any branch and keeps
 the installers as workflow artifacts instead.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Report security issues privately as described in
+[SECURITY.md](SECURITY.md).
 
 ## License
 
