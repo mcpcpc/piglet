@@ -88,6 +88,16 @@ describe("app shortcuts", () => {
     press({ key: ">", code: "Period", ctrlKey: true, shiftKey: true });
     expect(actions.cycleThinking).toHaveBeenCalledOnce();
   });
+
+  it("toggle the drawer with mod+J only in a session", () => {
+    platform("linux");
+    renderHook(() => useHotkeys());
+    press({ key: "j", ctrlKey: true });
+    expect(useApp.getState().drawerOpen).toBe(false);
+    useApp.setState({ activeId: "s1" });
+    press({ key: "j", ctrlKey: true });
+    expect(useApp.getState().drawerOpen).toBe(true);
+  });
 });
 
 describe("session tree keys", () => {
