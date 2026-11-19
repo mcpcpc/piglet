@@ -1,10 +1,13 @@
 import asyncio
 import base64
+import contextlib
 import io
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from PIL import Image
 
@@ -14,7 +17,7 @@ from piglet.tools.base import ToolContext, ToolError, definition, mutated_path
 from piglet.tools.bash import BashTool
 from piglet.tools.edit import EditTool, apply_edits, normalize_for_fuzzy_match
 from piglet.tools.paths import display_path, resolve_path
-from piglet.tools.process import OutputBuffer, find_shell
+from piglet.tools.process import OutputBuffer, find_executable, find_shell, kill_tree
 from piglet.tools.read import ReadTool, read_text_result, resize_image
 from piglet.tools.registry import builtin_tools, enabled_tool_names
 from piglet.tools.search import FindTool, GrepTool, LsTool, glob_matches
@@ -224,6 +227,41 @@ class BashTest(TmpCase):
         self.assertIn("Full output:", text)
         self.assertTrue(Path(result.details["fullOutputPath"]).exists())
         self.assertIn("powershell", BashTool(["powershell.exe", "-Command"]).description.lower())
+
+    def test_windows_lookup_skips_current_directory(self):
+        planted = self.cwd / "project"
+        tools = self.cwd / "tools"
+        planted.mkdir()
+        tools.mkdir()
+        (planted / "bash.CMD").write_text("evil")
+        (tools / "bash.EXE").write_text("real")
+        path = os.pathsep.join([".", "relative", str(tools)])
+        env = {"PATH": path, "PATHEXT": ".CMD;.EXE"}
+        with (
+            mock.patch("piglet.tools.process.sys", mock.Mock(platform="win32")),
+            mock.patch.dict(os.environ, env),
+            contextlib.chdir(planted),
+        ):
+            self.assertEqual(find_executable("bash"), str(tools / "bash.EXE"))
+            self.assertIsNone(find_executable("git"))
+
+    def test_windows_fallbacks_use_absolute_system_paths(self):
+        async def spawn(*args, **kwargs):
+            calls.append(args)
+            return mock.Mock(wait=mock.AsyncMock())
+
+        calls = []
+        with (
+            mock.patch("piglet.tools.process.sys", mock.Mock(platform="win32")),
+            mock.patch.dict(os.environ, {"SystemRoot": str(self.cwd), "PATH": ""}),
+            mock.patch.object(Path, "exists", return_value=False),
+        ):
+            shell = find_shell()
+            with mock.patch("asyncio.create_subprocess_exec", spawn):
+                run(kill_tree(mock.Mock(returncode=None, pid=42)))
+        system32 = self.cwd / "System32"
+        self.assertEqual(shell[0], str(system32 / "WindowsPowerShell" / "v1.0" / "powershell.exe"))
+        self.assertEqual(calls[0][0], str(system32 / "taskkill.exe"))
 
     def test_output_buffer_spills(self):
         buffer = OutputBuffer(self.cwd)

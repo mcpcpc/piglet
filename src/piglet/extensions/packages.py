@@ -8,6 +8,7 @@ from pathlib import Path
 
 from piglet.config.settings import SettingsStore
 from piglet.runtime.resources import package_dir_name
+from piglet.tools.process import find_executable
 
 
 def _is_remote(source: str) -> bool:
@@ -46,9 +47,12 @@ async def install_package(agent_dir: Path, source: str) -> None:
     if _is_remote(source):
         target = agent_dir / "packages" / package_dir_name(source)
         if not target.exists():
+            git = find_executable("git")
+            if git is None:
+                raise RuntimeError("Installing a package from a URL needs git on PATH")
             target.parent.mkdir(parents=True, exist_ok=True)
             process = await asyncio.create_subprocess_exec(
-                "git",
+                git,
                 "clone",
                 "--depth",
                 "1",
