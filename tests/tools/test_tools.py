@@ -3,6 +3,7 @@ import base64
 import contextlib
 import io
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -228,6 +229,16 @@ class BashTest(TmpCase):
         self.assertTrue(Path(result.details["fullOutputPath"]).exists())
         self.assertIn("powershell", BashTool(["powershell.exe", "-Command"]).description.lower())
 
+    def test_output_buffer_spills(self):
+        buffer = OutputBuffer(self.cwd)
+        buffer.add("x\n" * 3000)
+        buffer.add("tail")
+        self.assertTrue(Path(buffer.spill_path).read_text().endswith("tail"))
+
+
+class ExecutableLookupTest(TmpCase):
+    # Runs on every OS: Windows behaviour is simulated, and checked for real on Windows.
+
     def test_windows_lookup_skips_current_directory(self):
         planted = self.cwd / "project"
         tools = self.cwd / "tools"
@@ -263,11 +274,15 @@ class BashTest(TmpCase):
         self.assertEqual(shell[0], str(system32 / "WindowsPowerShell" / "v1.0" / "powershell.exe"))
         self.assertEqual(calls[0][0], str(system32 / "taskkill.exe"))
 
-    def test_output_buffer_spills(self):
-        buffer = OutputBuffer(self.cwd)
-        buffer.add("x\n" * 3000)
-        buffer.add("tail")
-        self.assertTrue(Path(buffer.spill_path).read_text().endswith("tail"))
+    @unittest.skipUnless(sys.platform == "win32", "needs a real Windows PATH")
+    def test_real_windows_lookup_matches_path(self):
+        with contextlib.chdir(self.cwd):
+            found = find_executable("git")
+            expected = shutil.which("git")
+        if expected is None:
+            self.skipTest("git is not on PATH")
+        self.assertEqual(os.path.normcase(found or ""), os.path.normcase(expected))
+        self.assertTrue(Path(find_shell()[0]).is_file())
 
 
 class SearchTest(TmpCase):
