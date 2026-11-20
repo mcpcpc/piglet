@@ -17,6 +17,9 @@
     "electron-builder": "26.18.0",
     "typescript": "7.0.2"
   },
+  "overrides": {
+    "minimatch@>=7.0.0 <11.0.1": "11.0.9"
+  },
   "build": {
     "appId": "dev.piglet.app",
     "productName": "piglet",
