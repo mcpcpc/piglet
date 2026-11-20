@@ -26,7 +26,6 @@ OAUTH_REFRESH_MARGIN_MS = 5 * 60 * 1000
 
 ENV_API_KEYS: dict[str, tuple[str, ...]] = {
     "anthropic": ("ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_OAUTH_TOKEN", "ANTHROPIC_API_KEY"),
-    "github-copilot": ("COPILOT_GITHUB_TOKEN",),
     "openai": ("OPENAI_API_KEY",),
     "azure": ("AZURE_OPENAI_API_KEY",),
     "nvidia": ("NVIDIA_API_KEY",),

@@ -37,7 +37,6 @@ PROVIDERS: dict[str, ProviderInfo] = {
     "cloudflare-ai-gateway": _info("Cloudflare AI Gateway"),
     "cloudflare-workers-ai": _info("Cloudflare Workers AI"),
     "deepseek": _info("DeepSeek"),
-    "github-copilot": _info("GitHub Copilot"),
     "google": _info("Google", "Gemini API key", "Gemini"),
     "google-vertex": _info("Google Vertex AI", "Google Cloud API key"),
     "groq": _info("Groq"),
@@ -61,7 +60,7 @@ PREFERRED_PROVIDERS: tuple[str, ...] = ("openrouter",)
 
 # Providers piglet has no way to configure: Pi signs in to them with other applications' OAuth
 # clients, which piglet does not port. They are listed only when a credential already exists.
-NO_SIGN_IN: frozenset[str] = frozenset({"github-copilot", "openai-codex"})
+NO_SIGN_IN: frozenset[str] = frozenset({"openai-codex"})
 
 
 class LoginMethod(Protocol):

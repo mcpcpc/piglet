@@ -26,7 +26,6 @@ class ListRuleTest(unittest.TestCase):
             "mistral",
             "google-vertex",
             "azure",
-            "github-copilot",
             "openai-codex",
             "cloudflare-ai-gateway",
         ):
@@ -41,16 +40,18 @@ class ListRuleTest(unittest.TestCase):
         self.assertEqual([p for p in order if p not in PROVIDERS], [])
 
     def test_no_sign_in_providers_appear_with_a_credential(self):
-        by_id, _ = rows(
-            stored={"github-copilot": {"type": "oauth", "access": "a", "expires": 1}},
-            env={"COPILOT_GITHUB_TOKEN": ""},
-        )
-        copilot = by_id["github-copilot"]
-        self.assertEqual(copilot["name"], "GitHub Copilot")
-        self.assertIsNone(copilot["keyLabel"])
-        self.assertEqual(copilot["sources"][0]["problem"], "expired")
+        by_id, _ = rows(stored={"openai-codex": {"type": "oauth", "access": "a", "expires": 1}})
+        codex = by_id["openai-codex"]
+        self.assertEqual(codex["name"], "OpenAI Codex")
+        self.assertIsNone(codex["keyLabel"])
+        self.assertEqual(codex["sources"][0]["problem"], "expired")
+
+    def test_removed_provider_credential_stays_listed_for_deletion(self):
+        stored = {"github-copilot": {"type": "oauth", "access": "a", "expires": NOW + 1}}
+        by_id, _ = rows(stored=stored)
+        self.assertEqual(by_id["github-copilot"]["name"], "github-copilot")
         by_id, _ = rows(env={"COPILOT_GITHUB_TOKEN": "t"})
-        self.assertEqual(by_id["github-copilot"]["sources"][0]["envVar"], "COPILOT_GITHUB_TOKEN")
+        self.assertNotIn("github-copilot", by_id)
 
     def test_custom_models_json_provider_uses_its_name(self):
         models = {
@@ -105,7 +106,7 @@ class SourcesTest(unittest.TestCase):
             "deepseek": {"type": "api_key"},
             "nvidia": {"type": "api_key", "key": "!never-run-this"},
             "openai": {"type": "oauth", "access": "a", "expires": 1},
-            "github-copilot": {"type": "oauth", "access": "a", "expires": NOW + 1},
+            "openai-codex": {"type": "oauth", "access": "a", "expires": NOW + 1},
             "huggingface": {"type": "mystery"},
         }
         by_id, _ = rows(
@@ -122,7 +123,7 @@ class SourcesTest(unittest.TestCase):
                 "deepseek": "invalid",
                 "nvidia": None,
                 "openai": None,
-                "github-copilot": None,
+                "openai-codex": None,
                 "huggingface": "invalid",
                 "zai": "unresolved",
             },
