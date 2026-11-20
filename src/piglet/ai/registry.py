@@ -22,7 +22,6 @@ DEFAULT_MODEL_PER_PROVIDER: dict[str, str] = {
     "anthropic": "claude-opus-5-5",
     "openai": "gpt-6.1-sol",
     "openai-codex": "gpt-6.1-sol",
-    "github-copilot": "gpt-6.1-sol",
     "google": "gemini-4-argon",
     "openrouter": "moonshotai/kimi-k2.7-code",
     "xai": "grok-4.7",

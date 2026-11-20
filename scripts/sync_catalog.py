@@ -33,7 +33,6 @@ SHIPPED_PROVIDERS = frozenset(
         "cloudflare-ai-gateway",
         "cloudflare-workers-ai",
         "deepseek",
-        "github-copilot",
         "google",
         "google-vertex",
         "groq",
