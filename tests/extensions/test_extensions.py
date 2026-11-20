@@ -195,6 +195,13 @@ class PackagesTest(ExtensionCase):
         remove_package(self.agent, str(folder))
         self.assertEqual(list_packages(self.agent), [])
 
+    def test_remote_install_needs_git_on_path(self):
+        with (
+            mock.patch("piglet.extensions.packages.find_executable", return_value=None),
+            self.assertRaisesRegex(RuntimeError, "needs git"),
+        ):
+            asyncio.run(install_package(self.agent, "https://example.invalid/team/tools.git"))
+
     def test_remote_clone_failure_and_success(self):
         class FakeProcess:
             def __init__(self, code):
@@ -207,10 +214,14 @@ class PackagesTest(ExtensionCase):
             return FakeProcess(128)
 
         async def cloning(*args, **kwargs):
+            programs.append(args[0])
             os.makedirs(args[-1])
             return FakeProcess(0)
 
+        programs = []
         url = "https://example.invalid/team/tools.git"
+        git = mock.patch("piglet.extensions.packages.find_executable", return_value="/opt/git")
+        self.enterContext(git)
         with (
             mock.patch("asyncio.create_subprocess_exec", failing),
             self.assertRaisesRegex(RuntimeError, "git clone failed"),
@@ -218,6 +229,7 @@ class PackagesTest(ExtensionCase):
             asyncio.run(install_package(self.agent, url))
         with mock.patch("asyncio.create_subprocess_exec", cloning):
             asyncio.run(install_package(self.agent, url))
+        self.assertEqual(programs, ["/opt/git"])
         self.assertTrue((self.agent / "packages" / "tools").is_dir())
         self.assertEqual(list_packages(self.agent), [{"source": url, "installed": True}])
         remove_package(self.agent, url)

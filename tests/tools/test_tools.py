@@ -1,10 +1,14 @@
 import asyncio
 import base64
+import contextlib
 import io
+import os
+import shutil
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from PIL import Image
 
@@ -14,7 +18,7 @@ from piglet.tools.base import ToolContext, ToolError, definition, mutated_path
 from piglet.tools.bash import BashTool
 from piglet.tools.edit import EditTool, apply_edits, normalize_for_fuzzy_match
 from piglet.tools.paths import display_path, resolve_path
-from piglet.tools.process import OutputBuffer, find_shell
+from piglet.tools.process import OutputBuffer, find_executable, find_shell, kill_tree
 from piglet.tools.read import ReadTool, read_text_result, resize_image
 from piglet.tools.registry import builtin_tools, enabled_tool_names
 from piglet.tools.search import FindTool, GrepTool, LsTool, glob_matches
@@ -230,6 +234,55 @@ class BashTest(TmpCase):
         buffer.add("x\n" * 3000)
         buffer.add("tail")
         self.assertTrue(Path(buffer.spill_path).read_text().endswith("tail"))
+
+
+class ExecutableLookupTest(TmpCase):
+    # Runs on every OS: Windows behaviour is simulated, and checked for real on Windows.
+
+    def test_windows_lookup_skips_current_directory(self):
+        planted = self.cwd / "project"
+        tools = self.cwd / "tools"
+        planted.mkdir()
+        tools.mkdir()
+        (planted / "bash.CMD").write_text("evil")
+        (tools / "bash.EXE").write_text("real")
+        path = os.pathsep.join([".", "relative", str(tools)])
+        env = {"PATH": path, "PATHEXT": ".CMD;.EXE"}
+        with (
+            mock.patch("piglet.tools.process.sys", mock.Mock(platform="win32")),
+            mock.patch.dict(os.environ, env),
+            contextlib.chdir(planted),
+        ):
+            self.assertEqual(find_executable("bash"), str(tools / "bash.EXE"))
+            self.assertIsNone(find_executable("git"))
+
+    def test_windows_fallbacks_use_absolute_system_paths(self):
+        async def spawn(*args, **kwargs):
+            calls.append(args)
+            return mock.Mock(wait=mock.AsyncMock())
+
+        calls = []
+        with (
+            mock.patch("piglet.tools.process.sys", mock.Mock(platform="win32")),
+            mock.patch.dict(os.environ, {"SystemRoot": str(self.cwd), "PATH": ""}),
+            mock.patch.object(Path, "exists", return_value=False),
+        ):
+            shell = find_shell()
+            with mock.patch("asyncio.create_subprocess_exec", spawn):
+                run(kill_tree(mock.Mock(returncode=None, pid=42)))
+        system32 = self.cwd / "System32"
+        self.assertEqual(shell[0], str(system32 / "WindowsPowerShell" / "v1.0" / "powershell.exe"))
+        self.assertEqual(calls[0][0], str(system32 / "taskkill.exe"))
+
+    @unittest.skipUnless(sys.platform == "win32", "needs a real Windows PATH")
+    def test_real_windows_lookup_matches_path(self):
+        with contextlib.chdir(self.cwd):
+            found = find_executable("git")
+            expected = shutil.which("git")
+        if expected is None:
+            self.skipTest("git is not on PATH")
+        self.assertEqual(os.path.normcase(found or ""), os.path.normcase(expected))
+        self.assertTrue(Path(find_shell()[0]).is_file())
 
 
 class SearchTest(TmpCase):

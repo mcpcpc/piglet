@@ -21,6 +21,38 @@ _KILL_GRACE_SECONDS = 2.0
 _READ_CHUNK = 65536
 
 
+def find_executable(name: str) -> str | None:
+    """Return the full path of the program ``name`` on ``PATH``, never from the current directory.
+
+    On Windows, ``shutil.which`` and ``CreateProcess`` look in the current directory before
+    ``PATH``, so a project could plant ``bash.cmd`` or ``git.exe`` that runs before the user
+    trusts it. There, only absolute ``PATH`` entries are searched.
+
+    Args:
+        name: Program name without an extension, such as ``"bash"`` or ``"git"``.
+
+    Returns:
+        The program's path, or ``None`` when it is not on ``PATH``.
+    """
+    if sys.platform != "win32":
+        return shutil.which(name)
+    suffixes = [s for s in os.environ.get("PATHEXT", ".COM;.EXE;.BAT;.CMD").split(";") if s]
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        directory = entry.strip().strip('"')
+        if not os.path.isabs(directory):
+            continue
+        for suffix in suffixes:
+            candidate = os.path.join(directory, name + suffix)
+            if os.path.isfile(candidate):
+                return candidate
+    return None
+
+
+def windows_system_program(*parts: str) -> str:
+    """Return the absolute path of a program in the Windows ``System32`` folder."""
+    return os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", *parts)
+
+
 def find_shell(shell_path: str | None = None) -> list[str]:
     """Return the argv prefix used to run a command string.
 
@@ -34,14 +66,15 @@ def find_shell(shell_path: str | None = None) -> list[str]:
         return [shell_path, "-c"]
     if sys.platform == "win32":
         for candidate in (
-            shutil.which("bash"),
+            find_executable("bash"),
             r"C:\Program Files\Git\bin\bash.exe",
             r"C:\Program Files (x86)\Git\bin\bash.exe",
         ):
             if candidate and Path(candidate).exists():
                 return [candidate, "-c"]
-        return ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command"]
-    for candidate in ("/bin/bash", "/usr/bin/bash", shutil.which("bash"), "/bin/sh"):
+        powershell = windows_system_program("WindowsPowerShell", "v1.0", "powershell.exe")
+        return [powershell, "-NoProfile", "-NonInteractive", "-Command"]
+    for candidate in ("/bin/bash", "/usr/bin/bash", find_executable("bash"), "/bin/sh"):
         if candidate and Path(candidate).exists():
             return [candidate, "-c"]
     return ["sh", "-c"]
@@ -112,7 +145,7 @@ async def kill_tree(process: asyncio.subprocess.Process) -> None:
         return
     if sys.platform == "win32":
         killer = await asyncio.create_subprocess_exec(
-            "taskkill",
+            windows_system_program("taskkill.exe"),
             "/F",
             "/T",
             "/PID",
