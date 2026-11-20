@@ -1,0 +1,59 @@
+name: Bug report
+description: Something in piglet doesn't work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please don't paste API keys, tokens or the contents of `auth.json`. Check that logs and
+        screenshots don't show private code or file paths you'd rather keep to yourself.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ...
+        2. ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: piglet version
+      description: Shown by `piglet --version`, or the installer's file name.
+      placeholder: "0.6.0"
+    validations:
+      required: true
+  - type: dropdown
+    id: app
+    attributes:
+      label: App
+      options:
+        - Desktop app (installer)
+        - Web app (`piglet` from source)
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: OS and browser
+      placeholder: "macOS 26.1, Safari / Windows 11 / Ubuntu 24.04, Firefox"
+    validations:
+      required: true
+  - type: input
+    id: provider
+    attributes:
+      label: Provider and model (if relevant)
+      placeholder: "OpenAI gpt-5, Ollama via models.json, ..."
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      render: text

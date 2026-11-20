@@ -1,0 +1,2 @@
+# Keep LF everywhere: biome rejects CRLF, which a default Windows checkout would produce.
+* text=auto eol=lf

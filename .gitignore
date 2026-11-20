@@ -13,3 +13,8 @@ web/dist/
 desktop/out/
 desktop/dist/
 src/piglet/server/static/
+.coverage.*
+.env
+.env.*
+*.log
+.piglet/

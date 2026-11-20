@@ -7,7 +7,7 @@ Frames are JSON over one WebSocket:
 * server → client: ``{"type": "event", "sessionId": "...", "event": {...Pi event...}}``
 
 Each command is validated by a pydantic model generated from :data:`COMMANDS`, which is also the
-source for the TypeScript types (``scripts/export_protocol_schema.py``).
+source for the TypeScript types (``scripts/gen_protocol_ts.py``).
 """
 
 from __future__ import annotations
